@@ -9,8 +9,8 @@ for imitation learning and RL.
 |---|---|---|
 | 1. Geometry + top-down render | `geometry.py` (table model, homography fit, full pose via `cv2.solvePnP`, ray-plane intersection at mallet height h), `render.py`, `scripts/click_landmarks.py` | Hand-clicked landmarks on ~10 frames from different videos give an overlay that lines up and a warped top-down view that looks right; reprojection error is logged |
 | 2a. Keypoint model | `RFDETRKeypointPreview`, `scripts/sample_frames.py`, `scripts/train_keypoints.py` | 100-300 frames across many camera setups; homographies fitted from predictions match hand-clicked ones |
-| 2b. Detector | `RFDETRSmall/Medium` (puck, mallet, hand), `scripts/train_detector.py` | ~500 frames labeled, then train, auto-label, correct, retrain until puck recall holds up on blurred and far-end frames |
-| 2c. Fast-puck detector | `fastpuck.py`: (a) a `puck_streak` object in the keypoint model with its two streak endpoints labeled, so one detection gives position plus the line the puck moved along during the exposure (the Kalman filter settles which way); (b) a model-free fallback: difference consecutive frames warped to top-down, mask out mallets and hands, fit a line to elongated blobs | Fast shots that the plain `puck` class misses are recovered; streak direction agrees with the smoothed track |
+| 2b. Detector | `RFDETRSmall/Medium` (puck, mallet), `scripts/train_detector.py` | ~500 frames labeled, then train, auto-label, correct, retrain until puck recall holds up on blurred and far-end frames |
+| 2c. Fast-puck detector | `fastpuck.py`: (a) a `puck_streak` object in the keypoint model with its two streak endpoints labeled, so one detection gives position plus the line the puck moved along during the exposure (the Kalman filter settles which way); (b) a model-free fallback: difference consecutive frames warped to top-down, mask out a widened box around each mallet (the hand holding it is inside), fit a line to elongated blobs | Fast shots that the plain `puck` class misses are recovered; streak direction agrees with the smoothed track |
 | 3. Shots, tracking, stitching | `video.py` (PyAV PTS timestamps, PySceneDetect cuts, calibration gate), `track.py` (constant-velocity Kalman with rail reflection, distance-dependent R, RTS smoother), `stitch.py` (2-DoF Mahalanobis d² < 9.21, the chi-square 99% cutoff) | Tracks continue across live angle switches and break where the edit skips time |
 | 4. Phases + replays | `phases.py` (hysteresis state machine, goal counting, replay matching against earlier puck paths) | Phase labels agree with hand review on the first few matches |
 | 5. End to end + BC | `dataset.py` (per-timestep state, actions, visibility flags, mirroring, episodes), segment table as Parquet | ~3 h processed, a behavioral-cloning baseline trained, usable-hours metric reported |
@@ -18,7 +18,7 @@ for imitation learning and RL.
 ## Decisions
 
 - **Table:** 8 ft × 4 ft (2.438 m × 1.219 m). Table coordinates: origin at table center, x along the long axis in meters. Goal width, center-circle radius and mallet height h are still to be measured, from hand-clicked frames or a spec sheet.
-- **Labeling:** Roboflow. Export COCO JSON for RF-DETR. Projects: `airhockey-objects` (puck, puck_streak, mallet, hand) and `airhockey-table` (table landmarks).
+- **Labeling:** Roboflow. Export COCO JSON for RF-DETR. Projects: `airhockey-objects` (puck, mallet; puck_streak and hand were dropped 2026-10-27: blurred pucks are labeled `puck`, and nothing downstream needs hands) and `airhockey-table` (table landmarks).
 - **Frame rate:** first footage is 1080p at 24-60 fps (2024 Worlds 60, 2022-2023 Worlds 30, 2022 Texas 24). Fast pucks will mostly be streaks, hence step 2c.
 
 ## Footage

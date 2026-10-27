@@ -1,4 +1,4 @@
-"""Pick frames from the play clips for labeling in Roboflow (puck, puck_streak, mallet, hand).
+"""Pick frames from the play clips for labeling in Roboflow (puck, mallet).
 
 Frames are spread over videos and camera framings: each (video, framing) gets a share of
 --n proportional to the square root of its play time, at least --min-per-group. Within a

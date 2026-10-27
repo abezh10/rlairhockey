@@ -12,7 +12,7 @@
 Review in Roboflow: filter images by the tag, fix the boxes, then remove the tag. scripts/roboflow_pull.py
 skips anything still tagged, so unreviewed model boxes never become training labels.
 Usage: python scripts/prelabel.py predict [--model v1]
-       python scripts/prelabel.py upload [--model v1] [--threshold puck=0.2,mallet=0.3,hand=0.5] [--dry-run]
+       python scripts/prelabel.py upload [--model v1] [--threshold puck=0.2,mallet=0.3] [--dry-run]
 """
 import argparse
 import json
@@ -79,7 +79,7 @@ def upload(a: argparse.Namespace, out: Path) -> None:
     if a.limit:
         todo = todo[:a.limit]
     thr = {k: float(v) for k, v in (kv.split("=") for kv in a.threshold.split(","))}
-    boxes = {x["name"]: [b for b in preds[x["name"]]["boxes"] if b["score"] >= thr[b["label"]]] for x in todo}
+    boxes = {x["name"]: [b for b in preds[x["name"]]["boxes"] if b["score"] >= thr.get(b["label"], 2)] for x in todo}
     n_box = Counter(b["label"] for bs in boxes.values() for b in bs)
     print(f"{len(listed)} images in {a.project}, {len(blank)} without labels, {len(todo)} to pre-label "
           f"with boxes {dict(n_box)} at score >= {thr}")
@@ -155,9 +155,8 @@ def main() -> None:
     ap.add_argument("--resolution", type=int, default=1280)
     ap.add_argument("--batch", type=int, default=8)
     ap.add_argument("--keep", type=float, default=0.2, help="predict: cache boxes scoring at least this")
-    # v1 on the 22 valid frames: puck 0.2 finds one more puck at no extra false boxes, mallet is clean from
-    # 0.3, and half of the hands under 0.5 are hands that weren't labeled.
-    ap.add_argument("--threshold", default="puck=0.2,mallet=0.3,hand=0.5", help="upload: per-class minimum score")
+    # v1 on the 22 valid frames: puck 0.2 finds one more puck at no extra false boxes; mallet is clean from 0.3.
+    ap.add_argument("--threshold", default="puck=0.2,mallet=0.3", help="upload: per-class minimum score; other classes aren't sent")
     ap.add_argument("--tag", default="prelabel")
     ap.add_argument("--limit", type=int, default=0, help="upload: only this many images (0 = all)")
     ap.add_argument("--jobs", type=int, default=4)

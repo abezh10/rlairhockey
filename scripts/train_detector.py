@@ -1,4 +1,4 @@
-"""Fine-tune RF-DETR on the puck / mallet / hand labels (scripts/roboflow_pull.py).
+"""Fine-tune RF-DETR on the puck / mallet labels (scripts/roboflow_pull.py).
 
 Trains at a higher resolution than RF-DETR's default because pucks are only 15-50 px wide in
 1080p frames and every frame is squashed to a square: at 576 px a far puck is ~4 px across.

@@ -1,7 +1,7 @@
 """Pull labels from Roboflow into a COCO dataset for RF-DETR, without needing a Roboflow version.
 
 Reads each labeled image's annotation through the API, keeps only the classes we train on
-(puck, mallet, hand; a stray "puck-streak" becomes puck), and splits by camera framing: about
+(puck, mallet; a stray "puck-streak" becomes puck, and hand boxes are dropped), and splits by camera framing: about
 --valid of each framing's frames go to valid, chosen by a hash of the file name so the split
 stays put as more frames are labeled. test/ mirrors valid/ (RF-DETR expects all three).
 Images are symlinks to data/frames/<set>/. Images still tagged --skip-tag (model pre-labels you haven't
@@ -23,7 +23,7 @@ import requests
 from dotenv import load_dotenv
 
 ROOT = Path(__file__).resolve().parents[1]
-CLASSES = ["hand", "mallet", "puck"]          # Roboflow's alphabetical order; id 0 is the group
+CLASSES = ["mallet", "puck"]                  # id 0 is the group; hands were dropped 2026-10-27
 ALIASES = {"puck-streak": "puck", "puck_streak": "puck"}
 
 
