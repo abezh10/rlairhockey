@@ -47,6 +47,8 @@ def main() -> None:
         off += len(page)
         if len(page) < 125:
             break
+    # Only images with boxes count as labeled. An empty annotation doesn't mean "no objects": Roboflow's editor
+    # can leave one on a frame you opened and skipped.
     labeled = [x for x in listed if isinstance(x.get("annotations"), dict) and x["annotations"].get("count")]
 
     def detail(x: dict) -> dict:
