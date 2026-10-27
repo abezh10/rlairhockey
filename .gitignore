@@ -6,6 +6,9 @@ data/*
 data/calib/*
 !data/calib/clicks/
 !data/calib/fits.json
+!data/labels/
+data/labels/*/*
+!data/labels/*/roboflow_raw.json
 models/
 outputs/
 __pycache__/
