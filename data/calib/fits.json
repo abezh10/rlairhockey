@@ -1,0 +1,1644 @@
+{
+ "A5gYiPuAT6g_cam1": {
+  "video": "A5gYiPuAT6g",
+  "angle": "cam1",
+  "H": [
+   [
+    322.1576738422143,
+    570.8071011308251,
+    849.0725851651583
+   ],
+   [
+    12.288261175124905,
+    -19.63876231478197,
+    611.8887056509994
+   ],
+   [
+    -0.16493535539927073,
+    0.19216399386090408,
+    1.0
+   ]
+  ],
+  "line_rms_px": {
+   "center": 4.48,
+   "far": 5.34,
+   "left": 4.46,
+   "near": 3.72,
+   "right": 0.61
+  },
+  "click_rms_px": {
+   "center": 8.14,
+   "far": 11.29,
+   "left": 9.6,
+   "near": 9.67,
+   "right": 0.81
+  },
+  "edge_rms_px": 3.79,
+  "lines": {
+   "center": "clicked",
+   "far": "clicked",
+   "left": "clicked",
+   "near": "snapped (74 edge pts, support 0.93, rms 0.33 px)",
+   "right": "clicked"
+  },
+  "camera": {
+   "K": [
+    [
+     2398.329211178036,
+     0.0,
+     960.0
+    ],
+    [
+     0.0,
+     2398.329211178036,
+     540.0
+    ],
+    [
+     0.0,
+     0.0,
+     1.0
+    ]
+   ],
+   "rvec": [
+    1.7534285017862048,
+    0.6228027766768292,
+    -0.473625908747066
+   ],
+   "tvec": [
+    -0.17210044629984272,
+    0.11788579863004758,
+    3.880898341194647
+   ],
+   "size": [
+    1920,
+    1080
+   ]
+  },
+  "camera_center": [
+   2.47,
+   -2.781,
+   1.125
+  ],
+  "goals": {},
+  "goal_width": null,
+  "clicks_updated": "2026-10-27T03:51:31.488Z",
+  "status": "skip",
+  "check": "bad",
+  "overlay": "data/calib/fits/A5gYiPuAT6g_cam1_overlay.jpg",
+  "top": "data/calib/fits/A5gYiPuAT6g_cam1_top.jpg"
+ },
+ "BR5zW8vHGJU_cam1": {
+  "video": "BR5zW8vHGJU",
+  "angle": "cam1",
+  "H": [
+   [
+    600.5863299231312,
+    215.53589227919397,
+    969.2437397780328
+   ],
+   [
+    -0.018237327856548316,
+    -285.39895655125173,
+    561.8325010679724
+   ],
+   [
+    0.011077716155104275,
+    0.22420175965222214,
+    1.0
+   ]
+  ],
+  "line_rms_px": {
+   "center": 0.65,
+   "far": 0.88,
+   "left": 0.54,
+   "near": 3.0,
+   "right": 0.54
+  },
+  "click_rms_px": {
+   "center": 0.65,
+   "far": 1.35,
+   "left": 0.58,
+   "near": 0.57,
+   "right": 0.58
+  },
+  "edge_rms_px": 2.22,
+  "lines": {
+   "center": "clicked",
+   "far": "snapped (72 edge pts, support 0.9, rms 0.34 px)",
+   "left": "clicked",
+   "near": "snapped (80 edge pts, support 1.0, rms 2.98 px)",
+   "right": "clicked"
+  },
+  "camera": {
+   "K": [
+    [
+     1910.5259262369816,
+     0.0,
+     960.0
+    ],
+    [
+     0.0,
+     1910.5259262369816,
+     540.0
+    ],
+    [
+     0.0,
+     0.0,
+     1.0
+    ]
+   ],
+   "rvec": [
+    2.3306196676873454,
+    -0.012407420106430663,
+    -0.002319098217167498
+   ],
+   "tvec": [
+    0.0033407778147588694,
+    0.03723754323675408,
+    3.2376818921862123
+   ],
+   "size": [
+    1920,
+    1080
+   ]
+  },
+  "camera_center": [
+   -0.01,
+   -2.321,
+   2.257
+  ],
+  "goals": {
+   "l": {
+    "width": 0.4544,
+    "center_y": 0.013,
+    "off_end": 0.0012
+   },
+   "r": {
+    "width": 0.4572,
+    "center_y": 0.0244,
+    "off_end": -0.0005
+   }
+  },
+  "goal_width": 0.4558,
+  "clicks_updated": "2026-10-27T03:47:01.910Z",
+  "status": "done",
+  "check": "ok",
+  "overlay": "data/calib/fits/BR5zW8vHGJU_cam1_overlay.jpg",
+  "top": "data/calib/fits/BR5zW8vHGJU_cam1_top.jpg"
+ },
+ "BR5zW8vHGJU_cam10": {
+  "video": "BR5zW8vHGJU",
+  "angle": "cam10",
+  "H": [
+   [
+    511.78521940211965,
+    -107.91611673304513,
+    1158.5313169171598
+   ],
+   [
+    32.55307260608291,
+    48.263083812525444,
+    581.940147054192
+   ],
+   [
+    0.19195432708128085,
+    0.21075919218631695,
+    1.0
+   ]
+  ],
+  "line_rms_px": {
+   "center": 0.12,
+   "far": 0.46,
+   "left": 0.02,
+   "near": 1.03,
+   "right": 0.3
+  },
+  "click_rms_px": {
+   "center": 0.23,
+   "far": 5.38,
+   "left": 0.04,
+   "near": 2.64,
+   "right": 1.13
+  },
+  "edge_rms_px": 0.67,
+  "lines": {
+   "center": "clicked",
+   "far": "snapped (61 edge pts, support 0.76, rms 0.35 px)",
+   "left": "clicked",
+   "near": "snapped (73 edge pts, support 0.91, rms 1.02 px)",
+   "right": "snapped (79 edge pts, support 0.99, rms 0.26 px)"
+  },
+  "camera": {
+   "K": [
+    [
+     1541.9620948058132,
+     0.0,
+     960.0
+    ],
+    [
+     0.0,
+     1541.9620948058132,
+     540.0
+    ],
+    [
+     0.0,
+     0.0,
+     1.0
+    ]
+   ],
+   "rvec": [
+    1.684450139560963,
+    -0.6806899079000558,
+    0.5270705828572422
+   ],
+   "tvec": [
+    0.44338952710796553,
+    0.09248006360270561,
+    3.4185551358453465
+   ],
+   "size": [
+    1920,
+    1080
+   ]
+  },
+  "camera_center": [
+   -2.591,
+   -2.12,
+   0.826
+  ],
+  "goals": {},
+  "goal_width": null,
+  "clicks_updated": "2026-10-27T03:58:44.222Z",
+  "status": "done",
+  "check": "",
+  "overlay": "data/calib/fits/BR5zW8vHGJU_cam10_overlay.jpg",
+  "top": "data/calib/fits/BR5zW8vHGJU_cam10_top.jpg"
+ },
+ "BR5zW8vHGJU_cam2": {
+  "video": "BR5zW8vHGJU",
+  "angle": "cam2",
+  "H": [
+   [
+    635.8241920259592,
+    301.06556262449664,
+    1025.7501260733727
+   ],
+   [
+    13.15551189806052,
+    57.59310770950609,
+    710.8107121153477
+   ],
+   [
+    0.034535310280772606,
+    0.3513837146299769,
+    1.0
+   ]
+  ],
+  "line_rms_px": {
+   "center": 0.8,
+   "far": 1.42,
+   "left": 0.83,
+   "near": 4.7,
+   "right": 1.34
+  },
+  "click_rms_px": {
+   "center": 0.83,
+   "far": 3.15,
+   "left": 1.24,
+   "near": 5.55,
+   "right": 2.49
+  },
+  "edge_rms_px": 1.71,
+  "lines": {
+   "center": "clicked",
+   "far": "snapped (51 edge pts, support 0.64, rms 0.38 px)",
+   "left": "clicked",
+   "near": "clicked",
+   "right": "clicked"
+  },
+  "camera": {
+   "K": [
+    [
+     1676.4644389831299,
+     0.0,
+     960.0
+    ],
+    [
+     0.0,
+     1676.4644389831299,
+     540.0
+    ],
+    [
+     0.0,
+     0.0,
+     1.0
+    ]
+   ],
+   "rvec": [
+    1.7917383536517506,
+    -0.058604606965218464,
+    0.049638440847836335
+   ],
+   "tvec": [
+    0.09497165720177764,
+    0.28318437599024693,
+    2.775887487374967
+   ],
+   "size": [
+    1920,
+    1080
+   ]
+  },
+  "camera_center": [
+   -0.273,
+   -2.633,
+   0.886
+  ],
+  "goals": {},
+  "goal_width": null,
+  "clicks_updated": "2026-10-27T03:54:03.443Z",
+  "status": "done",
+  "check": "",
+  "overlay": "data/calib/fits/BR5zW8vHGJU_cam2_overlay.jpg",
+  "top": "data/calib/fits/BR5zW8vHGJU_cam2_top.jpg"
+ },
+ "BR5zW8vHGJU_cam3": {
+  "video": "BR5zW8vHGJU",
+  "angle": "cam3",
+  "H": [
+   [
+    545.7178877349628,
+    308.08798514446937,
+    890.6985023330805
+   ],
+   [
+    14.129108834364105,
+    -38.676856194691034,
+    588.9122157478639
+   ],
+   [
+    0.00814023030766106,
+    0.31573974880912525,
+    1.0
+   ]
+  ],
+  "line_rms_px": {
+   "center": 0.57,
+   "far": 0.76,
+   "left": 0.68,
+   "near": 0.67,
+   "right": 0.64
+  },
+  "click_rms_px": {
+   "center": 0.57,
+   "far": 4.68,
+   "left": 0.97,
+   "near": 0.75,
+   "right": 0.82
+  },
+  "edge_rms_px": 0.75,
+  "lines": {
+   "center": "clicked",
+   "far": "snapped (80 edge pts, support 1.0, rms 0.26 px)",
+   "left": "clicked",
+   "near": "clicked",
+   "right": "clicked"
+  },
+  "camera": {
+   "K": [
+    [
+     1570.3415983957927,
+     0.0,
+     960.0
+    ],
+    [
+     0.0,
+     1570.3415983957927,
+     540.0
+    ],
+    [
+     0.0,
+     0.0,
+     1.0
+    ]
+   ],
+   "rvec": [
+    1.9695576399207095,
+    0.015482003080156312,
+    0.01338302227479625
+   ],
+   "tvec": [
+    -0.1378346099750933,
+    0.09063329977086207,
+    2.915492304532338
+   ],
+   "size": [
+    1920,
+    1080
+   ]
+  },
+  "camera_center": [
+   0.13,
+   -2.651,
+   1.218
+  ],
+  "goals": {
+   "l": {
+    "width": 0.3419,
+    "center_y": 0.0157,
+    "off_end": -0.0056
+   },
+   "r": {
+    "width": 0.4126,
+    "center_y": 0.0012,
+    "off_end": 0.0029
+   }
+  },
+  "goal_width": 0.3772,
+  "clicks_updated": "2026-10-27T03:52:31.694Z",
+  "status": "done",
+  "check": "",
+  "overlay": "data/calib/fits/BR5zW8vHGJU_cam3_overlay.jpg",
+  "top": "data/calib/fits/BR5zW8vHGJU_cam3_top.jpg"
+ },
+ "BR5zW8vHGJU_cam4": {
+  "video": "BR5zW8vHGJU",
+  "angle": "cam4",
+  "H": [
+   [
+    575.7196109245789,
+    296.47362895773375,
+    971.2024579207983
+   ],
+   [
+    14.95404963285385,
+    -53.73852161985947,
+    585.5814521877284
+   ],
+   [
+    -0.009655201957234785,
+    0.3114542734941698,
+    1.0
+   ]
+  ],
+  "line_rms_px": {
+   "center": 1.26,
+   "far": 0.51,
+   "left": 1.16,
+   "near": 0.34,
+   "right": 1.13
+  },
+  "click_rms_px": {
+   "center": 1.27,
+   "far": 0.81,
+   "left": 1.54,
+   "near": 0.39,
+   "right": 1.61
+  },
+  "edge_rms_px": 0.49,
+  "lines": {
+   "center": "clicked",
+   "far": "snapped (80 edge pts, support 1.0, rms 0.27 px)",
+   "left": "clicked",
+   "near": "snapped (74 edge pts, support 0.93, rms 0.28 px)",
+   "right": "clicked"
+  },
+  "camera": {
+   "K": [
+    [
+     1740.7739917370598,
+     0.0,
+     960.0
+    ],
+    [
+     0.0,
+     1740.7739917370598,
+     540.0
+    ],
+    [
+     0.0,
+     0.0,
+     1.0
+    ]
+   ],
+   "rvec": [
+    1.9587229660523446,
+    0.027914927007453773,
+    0.0344400122619096
+   ],
+   "tvec": [
+    0.035529699788068025,
+    0.07843303448043414,
+    2.9718255192839043
+   ],
+   "size": [
+    1920,
+    1080
+   ]
+  },
+  "camera_center": [
+   -0.071,
+   -2.721,
+   1.195
+  ],
+  "goals": {
+   "l": {
+    "width": 0.4237,
+    "center_y": 0.0171,
+    "off_end": -0.0021
+   },
+   "r": {
+    "width": 0.4484,
+    "center_y": 0.0319,
+    "off_end": -0.0106
+   }
+  },
+  "goal_width": 0.4361,
+  "clicks_updated": "2026-10-27T03:53:21.367Z",
+  "status": "done",
+  "check": "",
+  "overlay": "data/calib/fits/BR5zW8vHGJU_cam4_overlay.jpg",
+  "top": "data/calib/fits/BR5zW8vHGJU_cam4_top.jpg"
+ },
+ "BR5zW8vHGJU_cam5": {
+  "video": "BR5zW8vHGJU",
+  "angle": "cam5",
+  "H": [
+   [
+    201.95171496763038,
+    580.5029982007239,
+    962.2800151792559
+   ],
+   [
+    -11.749264544577583,
+    25.503966302148754,
+    647.3481743867694
+   ],
+   [
+    -0.21466034940880732,
+    0.2581884797063857,
+    1.0
+   ]
+  ],
+  "line_rms_px": {
+   "center": 0.05,
+   "far": 0.25,
+   "left": 0.3,
+   "near": 1.38,
+   "right": 0.01
+  },
+  "click_rms_px": {
+   "center": 0.08,
+   "far": 1.5,
+   "left": 0.75,
+   "near": 3.78,
+   "right": 0.01
+  },
+  "edge_rms_px": 0.85,
+  "lines": {
+   "center": "clicked",
+   "far": "snapped (79 edge pts, support 0.99, rms 0.25 px)",
+   "left": "snapped (64 edge pts, support 0.8, rms 0.28 px)",
+   "near": "snapped (80 edge pts, support 1.0, rms 1.38 px)",
+   "right": "clicked"
+  },
+  "camera": {
+   "K": [
+    [
+     1512.2083027776116,
+     0.0,
+     960.0
+    ],
+    [
+     0.0,
+     1512.2083027776116,
+     540.0
+    ],
+    [
+     0.0,
+     0.0,
+     1.0
+    ]
+   ],
+   "rvec": [
+    1.7794976548111532,
+    0.6484949791158366,
+    -0.45507426315305927
+   ],
+   "tvec": [
+    0.008893832714102006,
+    0.20439259895425388,
+    2.8632046582566297
+   ],
+   "size": [
+    1920,
+    1080
+   ]
+  },
+  "camera_center": [
+   1.675,
+   -2.089,
+   1.036
+  ],
+  "goals": {},
+  "goal_width": null,
+  "clicks_updated": "2026-10-27T03:55:11.277Z",
+  "status": "done",
+  "check": "",
+  "overlay": "data/calib/fits/BR5zW8vHGJU_cam5_overlay.jpg",
+  "top": "data/calib/fits/BR5zW8vHGJU_cam5_top.jpg"
+ },
+ "BR5zW8vHGJU_cam6": {
+  "video": "BR5zW8vHGJU",
+  "angle": "cam6",
+  "H": [
+   [
+    562.532074109037,
+    -152.25337929673495,
+    1069.8541551755452
+   ],
+   [
+    36.42864515471071,
+    35.959560753741144,
+    618.2414643711121
+   ],
+   [
+    0.21863877957075548,
+    0.20157489062929715,
+    1.0
+   ]
+  ],
+  "line_rms_px": {
+   "center": 0.34,
+   "far": 0.27,
+   "left": 0.45,
+   "near": 4.52,
+   "right": 0.71
+  },
+  "click_rms_px": {
+   "center": 0.67,
+   "far": 0.73,
+   "left": 1.67,
+   "near": 7.61,
+   "right": 4.22
+  },
+  "edge_rms_px": 0.74,
+  "lines": {
+   "center": "clicked",
+   "far": "snapped (70 edge pts, support 0.88, rms 0.23 px)",
+   "left": "snapped (67 edge pts, support 0.84, rms 0.37 px)",
+   "near": "clicked",
+   "right": "snapped (71 edge pts, support 0.89, rms 0.26 px)"
+  },
+  "camera": {
+   "K": [
+    [
+     1631.5540263536311,
+     0.0,
+     960.0
+    ],
+    [
+     0.0,
+     1631.5540263536311,
+     540.0
+    ],
+    [
+     0.0,
+     0.0,
+     1.0
+    ]
+   ],
+   "rvec": [
+    1.684759683691845,
+    -0.7077769280157045,
+    0.5439650863051645
+   ],
+   "tvec": [
+    0.2104574525590091,
+    0.15918730115408555,
+    3.287377745353285
+   ],
+   "size": [
+    1920,
+    1080
+   ]
+  },
+  "camera_center": [
+   -2.377,
+   -2.108,
+   0.886
+  ],
+  "goals": {},
+  "goal_width": null,
+  "clicks_updated": "2026-10-27T03:59:07.777Z",
+  "status": "done",
+  "check": "",
+  "overlay": "data/calib/fits/BR5zW8vHGJU_cam6_overlay.jpg",
+  "top": "data/calib/fits/BR5zW8vHGJU_cam6_top.jpg"
+ },
+ "BR5zW8vHGJU_cam7": {
+  "video": "BR5zW8vHGJU",
+  "angle": "cam7",
+  "H": [
+   [
+    583.9862578834999,
+    291.8601941560028,
+    942.2013034528657
+   ],
+   [
+    2.0198170425566198,
+    -32.41090027034756,
+    595.1949704309977
+   ],
+   [
+    0.011558597835519817,
+    0.33656271938518795,
+    1.0
+   ]
+  ],
+  "line_rms_px": {
+   "center": 0.07,
+   "far": 0.82,
+   "left": 0.05,
+   "near": 0.38,
+   "right": 0.42
+  },
+  "click_rms_px": {
+   "center": 0.07,
+   "far": 1.4,
+   "left": 0.07,
+   "near": 0.51,
+   "right": 1.89
+  },
+  "edge_rms_px": 0.6,
+  "lines": {
+   "center": "clicked",
+   "far": "snapped (80 edge pts, support 1.0, rms 0.23 px)",
+   "left": "clicked",
+   "near": "snapped (77 edge pts, support 0.96, rms 0.27 px)",
+   "right": "snapped (36 edge pts, support 0.45, rms 0.41 px)"
+  },
+  "camera": {
+   "K": [
+    [
+     1578.2616331771287,
+     0.0,
+     960.0
+    ],
+    [
+     0.0,
+     1578.2616331771287,
+     540.0
+    ],
+    [
+     0.0,
+     0.0,
+     1.0
+    ]
+   ],
+   "rvec": [
+    1.953054478706751,
+    -0.03990397920060713,
+    0.045417962378371486
+   ],
+   "tvec": [
+    -0.022142869972393044,
+    0.09618616004085663,
+    2.7526463296934676
+   ],
+   "size": [
+    1920,
+    1080
+   ]
+  },
+  "camera_center": [
+   -0.117,
+   -2.515,
+   1.117
+  ],
+  "goals": {},
+  "goal_width": null,
+  "clicks_updated": "2026-10-27T03:55:19.353Z",
+  "status": "done",
+  "check": "",
+  "overlay": "data/calib/fits/BR5zW8vHGJU_cam7_overlay.jpg",
+  "top": "data/calib/fits/BR5zW8vHGJU_cam7_top.jpg"
+ },
+ "BR5zW8vHGJU_cam8": {
+  "video": "BR5zW8vHGJU",
+  "angle": "cam8",
+  "H": [
+   [
+    672.1038172430797,
+    331.1590744472026,
+    953.919897439689
+   ],
+   [
+    5.723194867925937,
+    -89.29205401931117,
+    598.6281631157731
+   ],
+   [
+    0.0007564107792666046,
+    0.3125934983094506,
+    1.0
+   ]
+  ],
+  "line_rms_px": {
+   "center": 0.86,
+   "far": 2.99,
+   "left": 1.0,
+   "near": 0.9,
+   "right": 0.84
+  },
+  "click_rms_px": {
+   "center": 0.86,
+   "far": 6.42,
+   "left": 1.44,
+   "near": 4.41,
+   "right": 1.09
+  },
+  "edge_rms_px": 2.1,
+  "lines": {
+   "center": "clicked",
+   "far": "snapped (67 edge pts, support 0.84, rms 1.9 px)",
+   "left": "clicked",
+   "near": "snapped (79 edge pts, support 0.99, rms 0.24 px)",
+   "right": "clicked"
+  },
+  "camera": {
+   "K": [
+    [
+     1982.992734397967,
+     0.0,
+     960.0
+    ],
+    [
+     0.0,
+     1982.992734397967,
+     540.0
+    ],
+    [
+     0.0,
+     0.0,
+     1.0
+    ]
+   ],
+   "rvec": [
+    1.9644728820534523,
+    0.03145963738832723,
+    -0.033823729904841275
+   ],
+   "tvec": [
+    -0.02609345898081954,
+    0.08713255530443903,
+    2.9509700285499765
+   ],
+   "size": [
+    1920,
+    1080
+   ]
+  },
+  "camera_center": [
+   0.139,
+   -2.688,
+   1.212
+  ],
+  "goals": {},
+  "goal_width": null,
+  "clicks_updated": "2026-10-27T03:55:43.211Z",
+  "status": "done",
+  "check": "",
+  "overlay": "data/calib/fits/BR5zW8vHGJU_cam8_overlay.jpg",
+  "top": "data/calib/fits/BR5zW8vHGJU_cam8_top.jpg"
+ },
+ "BR5zW8vHGJU_cam9": {
+  "video": "BR5zW8vHGJU",
+  "angle": "cam9",
+  "H": [
+   [
+    494.2073407626155,
+    -69.1279819744149,
+    1151.4430039084107
+   ],
+   [
+    27.783905489398755,
+    64.95065496294099,
+    581.0181690576972
+   ],
+   [
+    0.18184018588142237,
+    0.2388304985171502,
+    1.0
+   ]
+  ],
+  "line_rms_px": {
+   "center": 0.34,
+   "far": 0.41,
+   "left": 0.04,
+   "near": 1.75,
+   "right": 0.76
+  },
+  "click_rms_px": {
+   "center": 0.7,
+   "far": 8.15,
+   "left": 0.06,
+   "near": 3.39,
+   "right": 3.39
+  },
+  "edge_rms_px": 0.64,
+  "lines": {
+   "center": "clicked",
+   "far": "snapped (60 edge pts, support 0.75, rms 0.32 px)",
+   "left": "clicked",
+   "near": "clicked",
+   "right": "snapped (42 edge pts, support 0.53, rms 0.59 px)"
+  },
+  "camera": {
+   "K": [
+    [
+     1405.1093188808932,
+     0.0,
+     960.0
+    ],
+    [
+     0.0,
+     1405.1093188808932,
+     540.0
+    ],
+    [
+     0.0,
+     0.0,
+     1.0
+    ]
+   ],
+   "rvec": [
+    1.687697265948767,
+    -0.6660955295585212,
+    0.5084737058560672
+   ],
+   "tvec": [
+    0.45854224654013664,
+    0.09069250079204808,
+    3.2161074900814497
+   ],
+   "size": [
+    1920,
+    1080
+   ]
+  },
+  "camera_center": [
+   -2.424,
+   -2.018,
+   0.783
+  ],
+  "goals": {},
+  "goal_width": null,
+  "clicks_updated": "2026-10-27T03:57:22.140Z",
+  "status": "done",
+  "check": "",
+  "overlay": "data/calib/fits/BR5zW8vHGJU_cam9_overlay.jpg",
+  "top": "data/calib/fits/BR5zW8vHGJU_cam9_top.jpg"
+ },
+ "ep0KRI2pgRw_cam1": {
+  "video": "ep0KRI2pgRw",
+  "angle": "cam1",
+  "H": [
+   [
+    678.694998524443,
+    -140.4220336443448,
+    1167.7134700522056
+   ],
+   [
+    68.55354338922072,
+    111.91135727939171,
+    738.1354769227872
+   ],
+   [
+    0.22552924008579234,
+    0.26696075357634147,
+    1.0
+   ]
+  ],
+  "line_rms_px": {
+   "center": 1.69,
+   "far": 5.72,
+   "left": 0.28,
+   "near": 3.7,
+   "right": 1.83
+  },
+  "click_rms_px": {
+   "center": 4.06,
+   "far": 14.56,
+   "left": 0.44,
+   "near": 6.85,
+   "right": 20.21
+  },
+  "edge_rms_px": 2.18,
+  "lines": {
+   "center": "clicked",
+   "far": "clicked",
+   "left": "clicked",
+   "near": "clicked",
+   "right": "snapped (69 edge pts, support 0.86, rms 0.58 px)"
+  },
+  "camera": {
+   "K": [
+    [
+     1732.039235031848,
+     0.0,
+     960.0
+    ],
+    [
+     0.0,
+     1732.039235031848,
+     540.0
+    ],
+    [
+     0.0,
+     0.0,
+     1.0
+    ]
+   ],
+   "rvec": [
+    1.5790693364035802,
+    -0.6098373942258132,
+    0.5077353392068177
+   ],
+   "tvec": [
+    0.34228265759274484,
+    0.32502681545177636,
+    2.843278154606111
+   ],
+   "size": [
+    1920,
+    1080
+   ]
+  },
+  "camera_center": [
+   -2.066,
+   -1.915,
+   0.609
+  ],
+  "goals": {
+   "r": {
+    "width": 0.4399,
+    "center_y": 0.0004,
+    "off_end": 0.0287
+   }
+  },
+  "goal_width": 0.4399,
+  "clicks_updated": "2026-10-27T03:48:49.699Z",
+  "status": "skip",
+  "check": "bad",
+  "overlay": "data/calib/fits/ep0KRI2pgRw_cam1_overlay.jpg",
+  "top": "data/calib/fits/ep0KRI2pgRw_cam1_top.jpg"
+ },
+ "g2xtRuDjb5o_cam1": {
+  "video": "g2xtRuDjb5o",
+  "angle": "cam1",
+  "H": [
+   [
+    500.3435895453112,
+    191.36187206152908,
+    979.9976941134364
+   ],
+   [
+    -2.6285556719771495,
+    -95.95330117804033,
+    638.5958997982327
+   ],
+   [
+    0.009379941928015256,
+    0.21511170813481362,
+    1.0
+   ]
+  ],
+  "line_rms_px": {
+   "center": 1.39,
+   "far": 0.37,
+   "left": 0.79,
+   "near": 1.81,
+   "right": 0.92
+  },
+  "click_rms_px": {
+   "center": 1.39,
+   "far": 0.12,
+   "left": 0.88,
+   "near": 1.86,
+   "right": 1.08
+  },
+  "edge_rms_px": 0.57,
+  "lines": {
+   "center": "clicked",
+   "far": "snapped (72 edge pts, support 0.9, rms 0.37 px)",
+   "left": "clicked",
+   "near": "clicked",
+   "right": "clicked"
+  },
+  "camera": {
+   "K": [
+    [
+     2060.939946328088,
+     0.0,
+     960.0
+    ],
+    [
+     0.0,
+     2060.939946328088,
+     540.0
+    ],
+    [
+     0.0,
+     0.0,
+     1.0
+    ]
+   ],
+   "rvec": [
+    2.0171151979686015,
+    -0.033844497943026644,
+    0.017209581063736976
+   ],
+   "tvec": [
+    0.03756509438091478,
+    0.20064762473988454,
+    4.192639572655849
+   ],
+   "size": [
+    1920,
+    1080
+   ]
+  },
+  "camera_center": [
+   -0.149,
+   -3.692,
+   1.992
+  ],
+  "goals": {
+   "l": {
+    "width": 0.4449,
+    "center_y": 0.0244,
+    "off_end": -0.007
+   },
+   "r": {
+    "width": 0.414,
+    "center_y": 0.0301,
+    "off_end": -0.0045
+   }
+  },
+  "goal_width": 0.4294,
+  "clicks_updated": "2026-10-27T03:50:19.246Z",
+  "status": "done",
+  "check": "bad",
+  "overlay": "data/calib/fits/g2xtRuDjb5o_cam1_overlay.jpg",
+  "top": "data/calib/fits/g2xtRuDjb5o_cam1_top.jpg"
+ },
+ "g2xtRuDjb5o_cam2": {
+  "video": "g2xtRuDjb5o",
+  "angle": "cam2",
+  "H": [
+   [
+    226.02461244596623,
+    616.3324788663397,
+    811.423307110724
+   ],
+   [
+    -14.854920925768223,
+    8.89466674776147,
+    625.4832218486233
+   ],
+   [
+    -0.1526104068600441,
+    0.15511905851114827,
+    1.0
+   ]
+  ],
+  "line_rms_px": {
+   "center": 1.08,
+   "far": 3.25,
+   "left": 1.0,
+   "near": 1.48,
+   "right": 0.27
+  },
+  "click_rms_px": {
+   "center": 2.53,
+   "far": 13.12,
+   "left": 2.62,
+   "near": 3.34,
+   "right": 0.54
+  },
+  "edge_rms_px": 3.06,
+  "lines": {
+   "center": "clicked",
+   "far": "snapped (61 edge pts, support 0.76, rms 0.34 px)",
+   "left": "clicked",
+   "near": "clicked",
+   "right": "clicked"
+  },
+  "camera": {
+   "K": [
+    [
+     2984.8922693450904,
+     0.0,
+     960.0
+    ],
+    [
+     0.0,
+     2984.8922693450904,
+     540.0
+    ],
+    [
+     0.0,
+     0.0,
+     1.0
+    ]
+   ],
+   "rvec": [
+    1.6263350696683603,
+    0.7530320605516118,
+    -0.6773722344831111
+   ],
+   "tvec": [
+    -0.2604286905994187,
+    0.14460192731477092,
+    4.993722006053528
+   ],
+   "size": [
+    1920,
+    1080
+   ]
+  },
+  "camera_center": [
+   3.999,
+   -2.838,
+   0.988
+  ],
+  "goals": {},
+  "goal_width": null,
+  "clicks_updated": "2026-10-27T03:51:09.546Z",
+  "status": "done",
+  "check": "",
+  "overlay": "data/calib/fits/g2xtRuDjb5o_cam2_overlay.jpg",
+  "top": "data/calib/fits/g2xtRuDjb5o_cam2_top.jpg"
+ },
+ "g2xtRuDjb5o_cam3": {
+  "video": "g2xtRuDjb5o",
+  "angle": "cam3",
+  "H": [
+   [
+    575.5506925783714,
+    -167.04538264022418,
+    1128.7642497996537
+   ],
+   [
+    2.507924586427271,
+    56.965141158803924,
+    641.4707693797853
+   ],
+   [
+    0.20382874863456044,
+    0.24125612069595018,
+    1.0
+   ]
+  ],
+  "line_rms_px": {
+   "center": 0.96,
+   "far": 1.82,
+   "left": 1.59,
+   "near": 0.49,
+   "right": 3.29
+  },
+  "click_rms_px": {
+   "center": 1.8,
+   "far": 6.96,
+   "left": 7.94,
+   "near": 1.1,
+   "right": 13.42
+  },
+  "edge_rms_px": 1.9,
+  "lines": {
+   "center": "clicked",
+   "far": "snapped (71 edge pts, support 0.89, rms 1.72 px)",
+   "left": "snapped (38 edge pts, support 0.47, rms 1.49 px)",
+   "near": "snapped (75 edge pts, support 0.94, rms 0.42 px)",
+   "right": "snapped (44 edge pts, support 0.55, rms 2.81 px)"
+  },
+  "camera": {
+   "K": [
+    [
+     1728.7781770259114,
+     0.0,
+     960.0
+    ],
+    [
+     0.0,
+     1728.7781770259114,
+     540.0
+    ],
+    [
+     0.0,
+     0.0,
+     1.0
+    ]
+   ],
+   "rvec": [
+    1.685200214764905,
+    -0.7378719227614865,
+    0.5292484090910885
+   ],
+   "tvec": [
+    0.3268059893322221,
+    0.18286175991059533,
+    3.151213540494382
+   ],
+   "size": [
+    1920,
+    1080
+   ]
+  },
+  "camera_center": [
+   -2.362,
+   -1.905,
+   0.929
+  ],
+  "goals": {},
+  "goal_width": null,
+  "clicks_updated": "2026-10-27T03:54:38.084Z",
+  "status": "done",
+  "check": "",
+  "overlay": "data/calib/fits/g2xtRuDjb5o_cam3_overlay.jpg",
+  "top": "data/calib/fits/g2xtRuDjb5o_cam3_top.jpg"
+ },
+ "g2xtRuDjb5o_cam4": {
+  "video": "g2xtRuDjb5o",
+  "angle": "cam4",
+  "H": [
+   [
+    593.9131406628977,
+    -209.81312947104496,
+    1131.099205607807
+   ],
+   [
+    13.14920282633214,
+    44.712602787057676,
+    666.9497158601141
+   ],
+   [
+    0.20278541308419237,
+    0.2113608434849965,
+    1.0
+   ]
+  ],
+  "line_rms_px": {
+   "center": 0.75,
+   "far": 0.33,
+   "left": 1.59,
+   "near": 0.1,
+   "right": 2.48
+  },
+  "click_rms_px": {
+   "center": 1.46,
+   "far": 0.24,
+   "left": 1.8,
+   "near": 0.17,
+   "right": 8.94
+  },
+  "edge_rms_px": 1.69,
+  "lines": {
+   "center": "clicked",
+   "far": "snapped (77 edge pts, support 0.96, rms 0.32 px)",
+   "left": "snapped (58 edge pts, support 0.72, rms 1.56 px)",
+   "near": "clicked",
+   "right": "snapped (73 edge pts, support 0.91, rms 1.75 px)"
+  },
+  "camera": {
+   "K": [
+    [
+     1925.3850276229848,
+     0.0,
+     960.0
+    ],
+    [
+     0.0,
+     1925.3850276229848,
+     540.0
+    ],
+    [
+     0.0,
+     0.0,
+     1.0
+    ]
+   ],
+   "rvec": [
+    1.6594473577810074,
+    -0.7231289349554584,
+    0.5466680799005443
+   ],
+   "tvec": [
+    0.30402101038068957,
+    0.2206637035009537,
+    3.3567869579148613
+   ],
+   "size": [
+    1920,
+    1080
+   ]
+  },
+  "camera_center": [
+   -2.514,
+   -2.064,
+   0.912
+  ],
+  "goals": {},
+  "goal_width": null,
+  "clicks_updated": "2026-10-27T03:58:06.271Z",
+  "status": "done",
+  "check": "",
+  "overlay": "data/calib/fits/g2xtRuDjb5o_cam4_overlay.jpg",
+  "top": "data/calib/fits/g2xtRuDjb5o_cam4_top.jpg"
+ },
+ "g2xtRuDjb5o_cam5": {
+  "video": "g2xtRuDjb5o",
+  "angle": "cam5",
+  "H": [
+   [
+    559.2986970085906,
+    -208.50731810721953,
+    1036.8612865056007
+   ],
+   [
+    10.295938224308369,
+    69.11303836200196,
+    666.697122612861
+   ],
+   [
+    0.20976054630933474,
+    0.23634349735968388,
+    1.0
+   ]
+  ],
+  "line_rms_px": {
+   "center": 0.69,
+   "far": 1.96,
+   "left": 0.15,
+   "near": 0.89,
+   "right": 3.6
+  },
+  "click_rms_px": {
+   "center": 1.4,
+   "far": 6.38,
+   "left": 0.22,
+   "near": 2.17,
+   "right": 5.19
+  },
+  "edge_rms_px": 2.43,
+  "lines": {
+   "center": "clicked",
+   "far": "snapped (77 edge pts, support 0.96, rms 0.29 px)",
+   "left": "clicked",
+   "near": "snapped (75 edge pts, support 0.94, rms 0.33 px)",
+   "right": "snapped (80 edge pts, support 1.0, rms 3.41 px)"
+  },
+  "camera": {
+   "K": [
+    [
+     1934.6861189123804,
+     0.0,
+     960.0
+    ],
+    [
+     0.0,
+     1934.6861189123804,
+     540.0
+    ],
+    [
+     0.0,
+     0.0,
+     1.0
+    ]
+   ],
+   "rvec": [
+    1.657609911745383,
+    -0.7884435739196722,
+    0.5902207574265603
+   ],
+   "tvec": [
+    0.15858846502584106,
+    0.22915359403657598,
+    3.4616307293407504
+   ],
+   "size": [
+    1920,
+    1080
+   ]
+  },
+  "camera_center": [
+   -2.615,
+   -2.054,
+   1.001
+  ],
+  "goals": {},
+  "goal_width": null,
+  "clicks_updated": "2026-10-27T03:57:42.918Z",
+  "status": "done",
+  "check": "",
+  "overlay": "data/calib/fits/g2xtRuDjb5o_cam5_overlay.jpg",
+  "top": "data/calib/fits/g2xtRuDjb5o_cam5_top.jpg"
+ },
+ "ilGhVvwdVyE_cam1": {
+  "video": "ilGhVvwdVyE",
+  "angle": "cam1",
+  "H": [
+   [
+    171.32477298599457,
+    564.6449812127114,
+    796.5991624277264
+   ],
+   [
+    -16.871868363326143,
+    -33.91355153683537,
+    675.9950318415744
+   ],
+   [
+    -0.2104835012242273,
+    0.0995736744574109,
+    1.0
+   ]
+  ],
+  "line_rms_px": {
+   "center": 0.0,
+   "far": 0.41,
+   "left": 0.0,
+   "near": 0.36
+  },
+  "click_rms_px": {
+   "center": 0.0,
+   "far": 0.16,
+   "left": 0.0,
+   "near": 0.0
+  },
+  "edge_rms_px": 0.38,
+  "lines": {
+   "center": "clicked",
+   "far": "snapped (70 edge pts, support 0.88, rms 0.41 px)",
+   "left": "clicked",
+   "near": "snapped (74 edge pts, support 0.93, rms 0.36 px)"
+  },
+  "camera": {
+   "K": [
+    [
+     2340.5544730550705,
+     0.0,
+     960.0
+    ],
+    [
+     0.0,
+     2340.5544730550705,
+     540.0
+    ],
+    [
+     0.0,
+     0.0,
+     1.0
+    ]
+   ],
+   "rvec": [
+    1.6393124843512643,
+    0.8019600755588282,
+    -0.6553796026705113
+   ],
+   "tvec": [
+    -0.24441515846337417,
+    0.22355650685435796,
+    3.8681642332395074
+   ],
+   "size": [
+    1920,
+    1080
+   ]
+  },
+  "camera_center": [
+   3.109,
+   -2.094,
+   1.01
+  ],
+  "goals": {
+   "l": {
+    "width": 0.4441,
+    "center_y": 0.0417,
+    "off_end": 0.0903
+   },
+   "r": {
+    "width": 0.3472,
+    "center_y": 0.0364,
+    "off_end": -0.0365
+   }
+  },
+  "goal_width": 0.3957,
+  "clicks_updated": "2026-10-27T03:47:43.802Z",
+  "status": "done",
+  "check": "",
+  "overlay": "data/calib/fits/ilGhVvwdVyE_cam1_overlay.jpg",
+  "top": "data/calib/fits/ilGhVvwdVyE_cam1_top.jpg"
+ }
+}

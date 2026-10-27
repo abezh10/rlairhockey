@@ -1,0 +1,77 @@
+{
+  "angle": "cam10",
+  "check": "",
+  "frame": "BR5zW8vHGJU_cam10",
+  "goals": {
+    "l_far": null,
+    "l_near": null,
+    "r_far": null,
+    "r_near": null
+  },
+  "h": 1080,
+  "lines": {
+    "center": [
+      {
+        "u": 1050,
+        "v": 559
+      },
+      {
+        "u": 1330,
+        "v": 618
+      }
+    ],
+    "far": [
+      {
+        "u": 1272.74,
+        "v": 477.99
+      },
+      {
+        "u": 971.54,
+        "v": 539.51
+      },
+      {
+        "u": 693.4,
+        "v": 601.04
+      }
+    ],
+    "left": [
+      {
+        "u": 576.77,
+        "v": 659.99
+      },
+      {
+        "u": 890.79,
+        "v": 784.32
+      }
+    ],
+    "near": [
+      {
+        "u": 1594.45,
+        "v": 562.58
+      },
+      {
+        "u": 1356.05,
+        "v": 653.59
+      },
+      {
+        "u": 1038.18,
+        "v": 770.22
+      }
+    ],
+    "right": [
+      {
+        "u": 1381.68,
+        "v": 494.65
+      },
+      {
+        "u": 1603.42,
+        "v": 525.42
+      }
+    ]
+  },
+  "note": "Claude's first guess, and it's off: the grid doesn't sit on the table. Please fix.",
+  "status": "done",
+  "updated": "2026-10-27T03:58:44.222Z",
+  "video": "BR5zW8vHGJU",
+  "w": 1920
+}

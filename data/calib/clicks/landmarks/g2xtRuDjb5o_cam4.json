@@ -1,0 +1,77 @@
+{
+  "angle": "cam4",
+  "check": "",
+  "frame": "g2xtRuDjb5o_cam4",
+  "goals": {
+    "l_far": null,
+    "l_near": null,
+    "r_far": null,
+    "r_near": null
+  },
+  "h": 1080,
+  "lines": {
+    "center": [
+      {
+        "u": 1000,
+        "v": 638
+      },
+      {
+        "u": 1380,
+        "v": 721
+      }
+    ],
+    "far": [
+      {
+        "u": 1099.45,
+        "v": 557.97
+      },
+      {
+        "u": 798.44,
+        "v": 639.23
+      },
+      {
+        "u": 497.18,
+        "v": 720.56
+      }
+    ],
+    "left": [
+      {
+        "u": 351.48,
+        "v": 782.9
+      },
+      {
+        "u": 763.9,
+        "v": 961.2
+      }
+    ],
+    "near": [
+      {
+        "u": 1650,
+        "v": 642
+      },
+      {
+        "u": 1450,
+        "v": 732
+      },
+      {
+        "u": 1200,
+        "v": 845
+      }
+    ],
+    "right": [
+      {
+        "u": 1379.33,
+        "v": 537.31
+      },
+      {
+        "u": 1650.62,
+        "v": 566.14
+      }
+    ]
+  },
+  "note": "Claude's first guess, snapped to the rail edges. Check the grid, then press Done.",
+  "status": "done",
+  "updated": "2026-10-27T03:58:06.271Z",
+  "video": "g2xtRuDjb5o",
+  "w": 1920
+}

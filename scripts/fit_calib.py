@@ -69,8 +69,6 @@ def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     fits, goal_widths = {}, []
     for name, doc in load_docs().items():
-        if doc.get("status") == "skip":
-            print(f"{name}: marked can't tell, skipped"); continue
         img = cv2.imread(str(ROOT / "data/calib/frames" / f"{name}.jpg"))
         pts, how = line_points(doc, img)
         res = fit_homography_lines(table, pts)
@@ -112,7 +110,7 @@ def main() -> None:
                           camera=cam.to_dict() if cam else None,
                           camera_center=[round(float(x), 3) for x in cam.center] if cam else None,
                           goals=goals, goal_width=round(float(np.mean([g["width"] for g in goals.values()])), 4) if goals else None,
-                          clicks_updated=doc.get("updated"), check=doc.get("check", ""),
+                          clicks_updated=doc.get("updated"), status=doc.get("status", ""), check=doc.get("check", ""),
                           overlay=str(paths["overlay"].relative_to(ROOT)), top=str(paths["top"].relative_to(ROOT)))
         f = fits[name]
         print(f"{name}: edge rms {f['edge_rms_px']} px | per line {f['line_rms_px']} | clicks vs fit {click_rms} | "

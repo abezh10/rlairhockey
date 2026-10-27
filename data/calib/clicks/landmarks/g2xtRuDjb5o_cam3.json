@@ -1,0 +1,77 @@
+{
+  "angle": "cam3",
+  "check": "",
+  "frame": "g2xtRuDjb5o_cam3",
+  "goals": {
+    "l_far": null,
+    "l_near": null,
+    "r_far": null,
+    "r_near": null
+  },
+  "h": 1080,
+  "lines": {
+    "center": [
+      {
+        "u": 1000,
+        "v": 614
+      },
+      {
+        "u": 1350,
+        "v": 690
+      }
+    ],
+    "far": [
+      {
+        "u": 1150,
+        "v": 514
+      },
+      {
+        "u": 903.6,
+        "v": 592.06
+      },
+      {
+        "u": 715.19,
+        "v": 647.18
+      }
+    ],
+    "left": [
+      {
+        "u": 854.9,
+        "v": 994.52
+      },
+      {
+        "u": 475.51,
+        "v": 797.14
+      }
+    ],
+    "near": [
+      {
+        "u": 1648.45,
+        "v": 606.95
+      },
+      {
+        "u": 1449.95,
+        "v": 707.9
+      },
+      {
+        "u": 1194.55,
+        "v": 835.59
+      }
+    ],
+    "right": [
+      {
+        "u": 1372.71,
+        "v": 495.94
+      },
+      {
+        "u": 1639.77,
+        "v": 540.73
+      }
+    ]
+  },
+  "note": "Claude's first guess. One end is hidden, so check where the far end of the grid lands.",
+  "status": "done",
+  "updated": "2026-10-27T03:54:38.084Z",
+  "video": "g2xtRuDjb5o",
+  "w": 1920
+}

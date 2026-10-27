@@ -82,6 +82,14 @@ input[type=text] { width: 100%; font: 13px var(--body); padding: 5px 7px; border
 .stats { display: flex; flex-wrap: wrap; gap: 4px 18px; font: 13px var(--mono); font-variant-numeric: tabular-nums; }
 .stats b { font-weight: 500; color: var(--muted); margin-right: 4px; }
 .stale { color: var(--warn); font-size: 13px; }
+.gallery { display: flex; flex-direction: column; gap: 10px; }
+.gallery h2 { font: 600 22px var(--display); margin: 0; }
+.gallery .lede { margin: 0; }
+.gal { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 10px; }
+.gc { display: flex; flex-direction: column; gap: 5px; padding: 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); color: var(--ink); cursor: pointer; text-align: left; font: inherit; }
+.gc img { width: 100%; max-width: 100%; aspect-ratio: 2.62 / 1.42; object-fit: cover; border-radius: 3px; display: block; background: var(--line); }
+.gc .row2 { display: flex; justify-content: space-between; gap: 6px; font: 12px var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+.gc .nm { font: 600 14px var(--display); letter-spacing: .02em; }
 </style>
 
 <div class="wrap">
@@ -129,6 +137,11 @@ input[type=text] { width: 100%; font: 13px var(--body); padding: 5px 7px; border
       <div class="status" id="status" role="status"></div>
     </aside>
   </div>
+  <section class="gallery" id="gallery" hidden>
+    <h2>All top-down views</h2>
+    <p class="lede">Each framing's median frame warped onto an 8 × 4 ft table, far rail at the top. The yellow box is the playing surface and the yellow line is the center line. A good fit shows straight rails along the box and the logo in the same place for every camera of the same match. Click a view to open that framing.</p>
+    <div class="gal" id="gal"></div>
+  </section>
 </div>
 
 <script>
@@ -463,7 +476,18 @@ function load(name, d) {
   state.set(name, s);
 }
 
+function renderGallery() {
+  const res = DATA.results || {};
+  $("#gallery").hidden = !Object.keys(res).length;
+  $("#gal").innerHTML = DATA.frames.filter(f => res[f.name]).map(f => {
+    const r = res[f.name], s = state.get(f.name);
+    return `<button class="gc" data-name="${f.name}"><img src="${r.top}" alt="Top-down warp of ${f.video_name} ${f.angle}" loading="lazy"><span class="nm">${f.video_name} · ${f.angle}</span><span class="row2"><span>edge rms ${r.rms_px.toFixed(2)} px</span>${badge(s)}</span></button>`;
+  }).join("");
+  $("#gal").querySelectorAll(".gc").forEach(b => b.onclick = () => { go(DATA.frames.findIndex(f => f.name === b.dataset.name)); window.scrollTo({ top: 0, behavior: "smooth" }); });
+}
+
 go(0);
+renderGallery();
 (async () => {
   db = await window.claude?.use?.("db") ?? null;
   if (!db) { renderStrip(); renderSide(); return; }
@@ -474,7 +498,7 @@ go(0);
       load(d.id, d.data()); if (d.id === frame().name) reloaded = true;
     }
     if (reloaded && !drag) selected = null;
-    if (!drag) { refresh(); renderStrip(); }
+    if (!drag) { refresh(); renderStrip(); renderGallery(); }
   }, () => { db = null; renderStrip(); renderSide(); });
   renderStrip(); renderSide();
 })();

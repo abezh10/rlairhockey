@@ -1,7 +1,11 @@
 .venv/
 .uv-cache/
 tools/bin/
-data/
+data/*
+!data/calib/
+data/calib/*
+!data/calib/clicks/
+!data/calib/fits.json
 models/
 outputs/
 __pycache__/
