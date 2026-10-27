@@ -25,6 +25,7 @@ def main() -> None:
     ap.add_argument("--type", default="object-detection")
     ap.add_argument("--annotation", default="puck, puck_streak, mallet, hand")
     ap.add_argument("--batch", default=None, help="Roboflow batch name (default: the frame set)")
+    ap.add_argument("--license", default="Private", help='project license; free (public) workspaces need e.g. "CC BY 4.0"')
     ap.add_argument("--jobs", type=int, default=8)
     ap.add_argument("--dry-run", action="store_true", help="check files and credentials, upload nothing")
     a = ap.parse_args()
@@ -53,26 +54,26 @@ def main() -> None:
     if a.project in existing:
         project = ws.project(a.project)
     else:
-        project = ws.create_project(project_name=a.project, project_type=a.type, project_license="Private",
+        project = ws.create_project(project_name=a.project, project_type=a.type, project_license=a.license,
                                     annotation=a.annotation)
         print(f"created project {project.id}")
 
-    def send(r) -> tuple[str, str | None, str | None]:
+    def send(r) -> tuple[str, str | None]:
         try:
-            res = project.upload(image_path=str(frames / r.file), batch_name=a.batch or a.set, split="train",
-                                 tag_names=[r.video, r.group], num_retry_uploads=2)
-            return r.file, (res or {}).get("image", {}).get("id") if isinstance(res, dict) else None, None
+            project.upload(image_path=str(frames / r.file), batch_name=a.batch or a.set, split="train",
+                           tag_names=[r.video, r.group], num_retry_uploads=2)
+            return r.file, None
         except Exception as e:  # keep going; failures are retried on the next run
-            return r.file, None, str(e)
+            return r.file, str(e)
 
     errors = 0
     with ThreadPoolExecutor(a.jobs) as ex:
-        for i, (f, image_id, err) in enumerate(ex.map(send, todo.itertuples()), 1):
+        for i, (f, err) in enumerate(ex.map(send, todo.itertuples()), 1):
             if err:
                 errors += 1
                 print(f"  {f}: {err}")
             else:
-                done[f] = image_id or ""
+                done[f] = True
             if i % 50 == 0 or i == len(todo):
                 done_path.write_text(json.dumps(done, indent=0))
                 print(f"  {i}/{len(todo)} sent, {errors} failed", flush=True)
