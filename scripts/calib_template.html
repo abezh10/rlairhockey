@@ -1,0 +1,481 @@
+<title>Table Landmarks</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: same edit-bay look as the cut review. Frame strip on top, then the click stage with a tool rail beside it. */
+:root {
+  --bg: #f3f6f8; --panel: #ffffff; --ink: #14212b; --muted: #5b6b78; --line: #d6dee5; --accent: #0a8fb8;
+  --ok: #1f8a4c; --bad: #c2362f; --warn: #b7791f;
+  --t-far: #ffb000; --t-near: #ff4d6d; --t-left: #2fd38a; --t-right: #3fc1f2; --t-center: #c77dff; --t-goal: #ffffff;
+  --display: "Barlow Semi Condensed", "Arial Narrow", system-ui, sans-serif;
+  --body: "Barlow", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #0d1419; --panel: #152029; --ink: #e4edf3; --muted: #93a4b1; --line: #26343f; --accent: #3cc4ea;
+    --ok: #46c27a; --bad: #f06b62; --warn: #e3b341;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0d1419; --panel: #152029; --ink: #e4edf3; --muted: #93a4b1; --line: #26343f; --accent: #3cc4ea;
+  --ok: #46c27a; --bad: #f06b62; --warn: #e3b341;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font: 15px/1.45 var(--body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 20px 48px; }
+.wrap { max-width: 1400px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+h1 { font: 700 30px/1.1 var(--display); letter-spacing: .01em; margin: 0; text-wrap: balance; }
+.lede { color: var(--muted); max-width: 80ch; margin: 4px 0 0; }
+.progress { font: 13px var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+.strip { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
+.fr { flex: 0 0 auto; width: 150px; display: flex; flex-direction: column; gap: 4px; padding: 5px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); color: var(--ink); cursor: pointer; text-align: left; font: inherit; }
+.fr[aria-current="true"] { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
+.fr img { width: 100%; aspect-ratio: 16/9; object-fit: cover; border-radius: 3px; display: block; background: var(--line); }
+.fr .nm { font: 600 13px var(--display); letter-spacing: .02em; }
+.fr .st { font: 11px var(--mono); color: var(--muted); display: flex; justify-content: space-between; gap: 4px; }
+.badge { font: 600 11px var(--display); letter-spacing: .05em; text-transform: uppercase; padding: 0 5px; border-radius: 3px; border: 1px solid var(--line); color: var(--muted); }
+.badge.done { background: var(--ok); border-color: var(--ok); color: #fff; }
+.badge.skip { background: var(--muted); border-color: var(--muted); color: var(--bg); }
+.badge.part { border-color: var(--warn); color: var(--warn); }
+.main { display: grid; grid-template-columns: minmax(0, 1fr) 270px; gap: 14px; align-items: start; }
+@media (max-width: 900px) { .main { grid-template-columns: 1fr; } }
+.head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 16px; }
+.head h2 { font: 600 22px var(--display); margin: 0; }
+.meta { font: 13px var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+.stage { position: relative; width: 100%; aspect-ratio: 16/9; max-width: 100%; background: #000; border-radius: 6px; overflow: hidden; touch-action: none; user-select: none; }
+.stage canvas.view { position: absolute; inset: 0; width: 100%; height: 100%; cursor: crosshair; }
+.stage canvas.view.grab { cursor: grabbing; }
+.loupe { position: absolute; top: 10px; width: 190px; height: 190px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 2px 10px rgba(0,0,0,.5); pointer-events: none; }
+.loupe.l { left: 10px; } .loupe.r { right: 10px; }
+.hint { font-size: 13px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 4px 14px; }
+kbd { font: 11px var(--mono); padding: 0 4px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 3px; background: var(--panel); }
+.rail { display: flex; flex-direction: column; gap: 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px; }
+.rail h3 { font: 600 13px var(--display); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0; }
+.diagram { width: 100%; height: auto; }
+.diagram .hit { cursor: pointer; }
+.tools { display: flex; flex-direction: column; gap: 4px; }
+.tool { display: grid; grid-template-columns: 14px 1fr auto auto; align-items: center; gap: 8px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 5px; background: var(--bg); color: var(--ink); cursor: pointer; font: 500 14px var(--body); text-align: left; }
+.tool[aria-pressed="true"] { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+.tool .sw { width: 12px; height: 12px; border-radius: 50%; border: 1.5px solid #000; }
+.tool .ct { font: 12px var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+.tool .need { color: var(--warn); }
+.row { display: flex; gap: 6px; flex-wrap: wrap; }
+.btn { flex: 1; font: 600 14px var(--display); padding: 6px 10px; border-radius: 5px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); cursor: pointer; white-space: nowrap; }
+.btn:disabled { opacity: .5; cursor: default; }
+.btn.on.ok { background: var(--ok); border-color: var(--ok); color: #fff; }
+.btn.on.skip { background: var(--muted); border-color: var(--muted); color: var(--bg); }
+.btn.on.bad { background: var(--bad); border-color: var(--bad); color: #fff; }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.check label { display: inline-flex; gap: 6px; align-items: center; font-size: 14px; cursor: pointer; }
+.fitline { font: 12px var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+input[type=text] { width: 100%; font: 13px var(--body); padding: 5px 7px; border: 1px solid var(--line); border-radius: 4px; background: var(--bg); color: var(--ink); }
+.status { font-size: 13px; color: var(--bad); min-height: 1em; }
+.result { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+.result[hidden] { display: none !important; }
+.result h3 { font: 600 18px var(--display); margin: 0; }
+.result .imgs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+@media (max-width: 700px) { .result .imgs { grid-template-columns: 1fr; } }
+.result img { width: 100%; max-width: 100%; border-radius: 4px; display: block; }
+.stats { display: flex; flex-wrap: wrap; gap: 4px 18px; font: 13px var(--mono); font-variant-numeric: tabular-nums; }
+.stats b { font-weight: 500; color: var(--muted); margin-right: 4px; }
+.stale { color: var(--warn); font-size: 13px; }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Table Landmarks</h1>
+    <p class="lede">Each picture is one fixed camera framing, with players blurred out by a median over time. Click points along each edge where the blue or white playing surface meets the rail. Two well-spread points per edge are enough, and the edges can run off the picture. Left, right and far are as this camera sees the table. Then click the two posts of each goal you can see. Once enough edges are in, the table grid is drawn on top so you can check it sits on the table.</p>
+  </header>
+  <div class="progress" id="progress"></div>
+  <nav class="strip" id="strip" aria-label="Camera framings"></nav>
+  <div class="main">
+    <section style="display:flex;flex-direction:column;gap:8px;min-width:0">
+      <div class="head"><h2 id="title"></h2><span class="meta" id="meta"></span></div>
+      <div class="stage" id="stage">
+        <canvas class="view" id="view"></canvas>
+        <canvas class="loupe r" id="loupe" width="190" height="190" hidden></canvas>
+      </div>
+      <div class="hint">
+        <span>Click to add a point</span><span>Drag a point to move it</span><span>Right-click or <kbd>Shift</kbd>-click a point to delete it</span>
+        <span>Scroll to zoom, drag empty space to pan</span><span><kbd>1</kbd>–<kbd>9</kbd> tools</span><span>arrows nudge the selected point</span><span><kbd>N</kbd>/<kbd>P</kbd> next/previous framing</span>
+      </div>
+      <div class="result" id="result" hidden>
+        <h3>Fit check</h3>
+        <div class="stats" id="stats"></div>
+        <div class="stale" id="stale" hidden>You changed the clicks after this fit. Tell Claude to refit.</div>
+        <div class="imgs"><img id="r-overlay" alt="Fitted table model drawn over the camera frame"><img id="r-top" alt="Camera frame warped to a top-down view of the table"></div>
+        <div class="row" style="max-width:420px">
+          <button class="btn ok" id="fit-ok">Lines up</button><button class="btn bad" id="fit-bad">Doesn't line up</button>
+        </div>
+      </div>
+    </section>
+    <aside class="rail">
+      <div>
+        <h3>Tool</h3>
+        <svg class="diagram" id="diagram" viewBox="0 0 260 150" role="img" aria-label="Table diagram: click a side to pick its tool"></svg>
+      </div>
+      <div class="tools" id="tools"></div>
+      <div class="row"><button class="btn" id="undo">Undo point</button><button class="btn" id="clear">Clear tool</button></div>
+      <div class="check"><label><input type="checkbox" id="showfit" checked> Show table grid</label></div>
+      <div class="fitline" id="fitline"></div>
+      <div>
+        <h3 style="margin-bottom:6px">This framing</h3>
+        <div class="row"><button class="btn ok" id="done">Done</button><button class="btn skip" id="skip">Can't tell</button></div>
+      </div>
+      <input type="text" id="note" placeholder="Note, e.g. left end hidden" aria-label="Note">
+      <div class="status" id="status" role="status"></div>
+    </aside>
+  </div>
+</div>
+
+<script>
+const DATA = /*DATA*/;
+const L = DATA.table.length / 2, W = DATA.table.width / 2;
+const LINES = [
+  { id: "far", name: "Far rail", color: "--t-far" },
+  { id: "near", name: "Near rail", color: "--t-near" },
+  { id: "left", name: "Left end", color: "--t-left" },
+  { id: "right", name: "Right end", color: "--t-right" },
+  { id: "center", name: "Center line", color: "--t-center" },
+];
+const GOALS = [
+  { id: "l_far", name: "Left goal, far post" }, { id: "l_near", name: "Left goal, near post" },
+  { id: "r_far", name: "Right goal, far post" }, { id: "r_near", name: "Right goal, near post" },
+];
+const TOOLS = [...LINES.map(t => ({ ...t, kind: "line" })), ...GOALS.map(t => ({ ...t, kind: "goal", color: "--t-goal" }))];
+const $ = s => document.querySelector(s);
+const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const blank = () => ({ lines: { far: [], near: [], left: [], right: [], center: [] }, goals: { l_far: null, l_near: null, r_far: null, r_near: null }, status: "", note: "", check: "" });
+
+let db = null;
+const state = new Map(DATA.frames.map(f => [f.name, blank()]));
+const pending = new Map();
+let cur = 0, tool = "far", selected = null, showFit = true;
+const img = new Image();
+let view = { s: 1, ox: 0, oy: 0 };
+
+const frame = () => DATA.frames[cur];
+const st = () => state.get(frame().name);
+
+// ---- geometry ----
+function fitLine(pts) {
+  if (pts.length < 2) return null;
+  let mu = 0, mv = 0; for (const p of pts) { mu += p.u; mv += p.v; } mu /= pts.length; mv /= pts.length;
+  let a = 0, b = 0, c = 0; for (const p of pts) { const du = p.u - mu, dv = p.v - mv; a += du * du; b += du * dv; c += dv * dv; }
+  const th = 0.5 * Math.atan2(2 * b, a - c), du = Math.cos(th), dv = Math.sin(th);
+  return [-dv, du, dv * mu - du * mv];   // n . (u, v) + c = 0
+}
+const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+function meet(a, b) { if (!a || !b) return null; const x = cross(a, b); return Math.abs(x[2]) < 1e-9 ? null : { u: x[0] / x[2], v: x[1] / x[2] }; }
+function solve(A, b) {
+  const n = b.length, M = A.map((r, i) => [...r, b[i]]);
+  for (let c = 0; c < n; c++) {
+    let p = c; for (let r = c + 1; r < n; r++) if (Math.abs(M[r][c]) > Math.abs(M[p][c])) p = r;
+    if (Math.abs(M[p][c]) < 1e-12) return null; [M[c], M[p]] = [M[p], M[c]];
+    for (let r = 0; r < n; r++) if (r !== c) { const f = M[r][c] / M[c][c]; for (let k = c; k <= n; k++) M[r][k] -= f * M[c][k]; }
+  }
+  return M.map((r, i) => r[n] / r[i]);
+}
+function homography(world, image) {   // least squares DLT with h33 = 1, normalized image coords
+  const s = 1 / frame().w, A = [], b = [];
+  world.forEach(([x, y], i) => { const u = image[i].u * s, v = image[i].v * s;
+    A.push([x, y, 1, 0, 0, 0, -u * x, -u * y]); b.push(u); A.push([0, 0, 0, x, y, 1, -v * x, -v * y]); b.push(v); });
+  const AtA = Array.from({ length: 8 }, (_, i) => Array.from({ length: 8 }, (_, j) => A.reduce((t, r) => t + r[i] * r[j], 0)));
+  const Atb = Array.from({ length: 8 }, (_, i) => A.reduce((t, r, k) => t + r[i] * b[k], 0));
+  const h = solve(AtA, Atb); if (!h) return null;
+  return [[h[0] / s, h[1] / s, h[2] / s], [h[3] / s, h[4] / s, h[5] / s], [h[6], h[7], 1]];
+}
+const applyH = (H, x, y) => { const w = H[2][0] * x + H[2][1] * y + H[2][2]; return { u: (H[0][0] * x + H[0][1] * y + H[0][2]) / w, v: (H[1][0] * x + H[1][1] * y + H[1][2]) / w }; };
+function invert3(m) {
+  const [a, b, c] = m[0], [d, e, f] = m[1], [g, h, i] = m[2];
+  const A = e * i - f * h, B = -(d * i - f * g), C = d * h - e * g, det = a * A + b * B + c * C;
+  return [[A / det, -(b * i - c * h) / det, (b * f - c * e) / det], [B / det, (a * i - c * g) / det, -(a * f - c * d) / det], [C / det, -(a * h - b * g) / det, (a * e - b * d) / det]];
+}
+function solveFrame(s) {
+  const ln = Object.fromEntries(LINES.map(t => [t.id, fitLine(s.lines[t.id])]));
+  const pairs = [["far", "left", -L, W], ["far", "right", L, W], ["near", "left", -L, -W], ["near", "right", L, -W], ["far", "center", 0, W], ["near", "center", 0, -W]];
+  const world = [], image = [];
+  for (const [a, b, x, y] of pairs) { const p = meet(ln[a], ln[b]); if (p) { world.push([x, y]); image.push(p); } }
+  const onFar = world.filter(w => w[1] > 0).length, onNear = world.length - onFar;
+  const H = onFar >= 2 && onNear >= 2 ? homography(world, image) : null;
+  return { ln, H, image };
+}
+
+// ---- drawing ----
+function toScreen(p, v = view) { return { x: p.u * v.s + v.ox, y: p.v * v.s + v.oy }; }
+function toImage(x, y) { return { u: (x - view.ox) / view.s, v: (y - view.oy) / view.s }; }
+function drawScene(ctx, v, cw, ch, dpr) {
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.fillStyle = "#000"; ctx.fillRect(0, 0, cw, ch);
+  if (img.complete && img.naturalWidth) { ctx.imageSmoothingEnabled = v.s < 2; ctx.drawImage(img, v.ox, v.oy, frame().w * v.s, frame().h * v.s); }
+  const s = st(), sol = solveFrame(s);
+  if (showFit && sol.H) {
+    const H = sol.H, seg = (x0, y0, x1, y1, color, w) => {
+      ctx.beginPath();
+      for (let k = 0; k <= 24; k++) { const t = k / 24, q = toScreen(applyH(H, x0 + (x1 - x0) * t, y0 + (y1 - y0) * t), v); k ? ctx.lineTo(q.x, q.y) : ctx.moveTo(q.x, q.y); }
+      ctx.strokeStyle = color; ctx.lineWidth = w; ctx.stroke();
+    };
+    ctx.globalAlpha = 0.55;
+    for (let x = -L + 0.25; x < L - 1e-6; x += 0.25) if (Math.abs(x) > 1e-6) seg(x, -W, x, W, "#7fe3ff", 1);
+    for (let y = -W + 0.25; y < W - 1e-6; y += 0.25) seg(-L, y, L, y, "#7fe3ff", 1);
+    ctx.globalAlpha = 0.9;
+    seg(-L, W, L, W, "#ffe14d", 2); seg(L, W, L, -W, "#ffe14d", 2); seg(L, -W, -L, -W, "#ffe14d", 2); seg(-L, -W, -L, W, "#ffe14d", 2); seg(0, W, 0, -W, "#ffe14d", 2);
+    ctx.globalAlpha = 1;
+  }
+  for (const t of LINES) {
+    const ln = sol.ln[t.id], color = css(t.color);
+    if (ln) {   // the fitted edge, extended across the frame
+      const [a, b, c] = ln, w = frame().w, h = frame().h, ends = [];
+      if (Math.abs(b) > Math.abs(a)) { for (const u of [-w, 2 * w]) ends.push({ u, v: -(a * u + c) / b }); }
+      else { for (const vv of [-h, 2 * h]) ends.push({ u: -(b * vv + c) / a, v: vv }); }
+      const p = toScreen(ends[0], v), q = toScreen(ends[1], v);
+      ctx.setLineDash([6, 5]); ctx.strokeStyle = color; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(q.x, q.y); ctx.stroke(); ctx.setLineDash([]);
+    }
+    for (const pt of s.lines[t.id]) dot(ctx, toScreen(pt, v), color, tool === t.id, pt === selected);
+  }
+  for (const g of GOALS) { const pt = s.goals[g.id]; if (pt) diamond(ctx, toScreen(pt, v), tool === g.id, pt === selected); }
+  for (const p of sol.image) { const q = toScreen(p, v); ctx.strokeStyle = "#fff"; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(q.x, q.y, 3, 0, 7); ctx.stroke(); }
+}
+function dot(ctx, q, color, active, sel) {
+  const r = active ? 6 : 4.5;
+  ctx.beginPath(); ctx.arc(q.x, q.y, r + 1.5, 0, 7); ctx.fillStyle = "#000"; ctx.fill();
+  ctx.beginPath(); ctx.arc(q.x, q.y, r, 0, 7); ctx.fillStyle = color; ctx.fill();
+  if (sel) { ctx.beginPath(); ctx.arc(q.x, q.y, r + 4, 0, 7); ctx.strokeStyle = "#fff"; ctx.lineWidth = 1.5; ctx.stroke(); }
+  ctx.beginPath(); ctx.arc(q.x, q.y, 0.9, 0, 7); ctx.fillStyle = "#000"; ctx.fill();
+}
+function diamond(ctx, q, active, sel) {
+  const r = active ? 8 : 6;
+  ctx.beginPath(); ctx.moveTo(q.x, q.y - r); ctx.lineTo(q.x + r, q.y); ctx.lineTo(q.x, q.y + r); ctx.lineTo(q.x - r, q.y); ctx.closePath();
+  ctx.fillStyle = "rgba(255,255,255,.85)"; ctx.fill(); ctx.strokeStyle = "#000"; ctx.lineWidth = 1.5; ctx.stroke();
+  if (sel) { ctx.strokeStyle = "#fff"; ctx.beginPath(); ctx.arc(q.x, q.y, r + 4, 0, 7); ctx.stroke(); }
+  ctx.beginPath(); ctx.arc(q.x, q.y, 1, 0, 7); ctx.fillStyle = "#000"; ctx.fill();
+}
+
+const canvas = $("#view"), loupe = $("#loupe");
+let cursor = null;
+function sizeCanvas() {
+  const r = canvas.getBoundingClientRect(), dpr = devicePixelRatio || 1;
+  canvas.width = Math.round(r.width * dpr); canvas.height = Math.round(r.height * dpr);
+  return { cw: r.width, ch: r.height, dpr };
+}
+function fitView() { const { cw } = sizeCanvas(); view = { s: cw / frame().w, ox: 0, oy: 0 }; }
+function draw() {
+  const { cw, ch, dpr } = sizeCanvas();
+  drawScene(canvas.getContext("2d"), view, cw, ch, dpr);
+  if (cursor) {
+    loupe.hidden = false; loupe.className = "loupe " + (cursor.x > cw / 2 ? "l" : "r");
+    const M = Math.max(5, view.s * 3), lv = { s: M, ox: 95 - cursor.p.u * M, oy: 95 - cursor.p.v * M }, lc = loupe.getContext("2d");
+    drawScene(lc, lv, 190, 190, 1);
+    lc.setTransform(1, 0, 0, 1, 0, 0); lc.strokeStyle = "rgba(255,255,255,.9)"; lc.lineWidth = 1;
+    lc.beginPath(); lc.moveTo(95, 80); lc.lineTo(95, 90); lc.moveTo(95, 100); lc.lineTo(95, 110); lc.moveTo(80, 95); lc.lineTo(90, 95); lc.moveTo(100, 95); lc.lineTo(110, 95); lc.stroke();
+  } else loupe.hidden = true;
+}
+function refresh() { draw(); renderSide(); }
+
+// ---- interaction ----
+function hit(x, y) {
+  const s = st(); let best = null, bd = 10;
+  const test = (pt, owner) => { if (!pt) return; const q = toScreen(pt), d = Math.hypot(q.x - x, q.y - y); if (d < bd) { bd = d; best = { pt, owner }; } };
+  for (const t of LINES) for (const pt of s.lines[t.id]) test(pt, t.id);
+  for (const g of GOALS) test(s.goals[g.id], g.id);
+  return best;
+}
+function removePoint(pt, owner) {
+  const s = st();
+  if (s.lines[owner]) s.lines[owner] = s.lines[owner].filter(p => p !== pt); else s.goals[owner] = null;
+  if (selected === pt) selected = null;
+  changed();
+}
+let drag = null;
+canvas.addEventListener("pointerdown", e => {
+  if (e.button === 2) return;
+  canvas.setPointerCapture(e.pointerId);
+  const r = canvas.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top, h = hit(x, y);
+  if (h && e.shiftKey) { removePoint(h.pt, h.owner); return; }
+  drag = { x0: x, y0: y, ox: view.ox, oy: view.oy, moved: false, h };
+  if (h) { selected = h.pt; tool = h.owner; refresh(); }
+});
+canvas.addEventListener("pointermove", e => {
+  const r = canvas.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+  cursor = { x, y, p: toImage(x, y) };
+  if (drag) {
+    if (Math.hypot(x - drag.x0, y - drag.y0) > 4) drag.moved = true;
+    if (drag.h && drag.moved) { Object.assign(drag.h.pt, toImage(x, y)); dirty(); }
+    else if (drag.moved) { view.ox = drag.ox + x - drag.x0; view.oy = drag.oy + y - drag.y0; canvas.classList.add("grab"); }
+  }
+  draw();
+});
+canvas.addEventListener("pointerup", e => {
+  if (!drag) return;
+  const r = canvas.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+  if (!drag.moved && !drag.h) {
+    const p = toImage(x, y), s = st(), t = TOOLS.find(t => t.id === tool);
+    if (p.u >= 0 && p.v >= 0 && p.u <= frame().w && p.v <= frame().h) {
+      const pt = { u: p.u, v: p.v };
+      if (t.kind === "line") s.lines[tool].push(pt); else s.goals[tool] = pt;
+      selected = pt; changed();
+    }
+  } else if (drag.h && drag.moved) changed();
+  drag = null; canvas.classList.remove("grab"); draw();
+});
+canvas.addEventListener("pointerleave", () => { cursor = null; draw(); });
+canvas.addEventListener("contextmenu", e => {
+  e.preventDefault();
+  const r = canvas.getBoundingClientRect(), h = hit(e.clientX - r.left, e.clientY - r.top);
+  if (h) removePoint(h.pt, h.owner);
+});
+canvas.addEventListener("wheel", e => {
+  e.preventDefault();
+  const r = canvas.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top, p = toImage(x, y);
+  const s0 = r.width / frame().w, s = Math.min(s0 * 16, Math.max(s0, view.s * Math.exp(-e.deltaY * 0.0015)));
+  view = s === s0 ? { s, ox: 0, oy: 0 } : { s, ox: x - p.u * s, oy: y - p.v * s };
+  cursor = { x, y, p: toImage(x, y) }; draw();
+}, { passive: false });
+addEventListener("keydown", e => {
+  if (e.target.matches("input")) return;
+  const k = e.key;
+  if (k >= "1" && k <= "9") { tool = TOOLS[+k - 1].id; refresh(); return; }
+  if (k === "n" || k === "N") { go(Math.min(cur + 1, DATA.frames.length - 1)); return; }
+  if (k === "p" || k === "P") { go(Math.max(cur - 1, 0)); return; }
+  if (selected && k.startsWith("Arrow")) {
+    e.preventDefault(); const d = e.shiftKey ? 1 : 0.25;
+    if (k === "ArrowLeft") selected.u -= d; if (k === "ArrowRight") selected.u += d; if (k === "ArrowUp") selected.v -= d; if (k === "ArrowDown") selected.v += d;
+    changed(); return;
+  }
+  if (selected && (k === "Backspace" || k === "Delete")) {
+    e.preventDefault(); const s = st();
+    const owner = LINES.find(t => s.lines[t.id].includes(selected))?.id || GOALS.find(g => s.goals[g.id] === selected)?.id;
+    if (owner) removePoint(selected, owner);
+  }
+});
+addEventListener("resize", () => { fitView(); draw(); });
+
+$("#undo").onclick = () => { const s = st(), t = TOOLS.find(t => t.id === tool); if (t.kind === "line") s.lines[tool].pop(); else s.goals[tool] = null; selected = null; changed(); };
+$("#clear").onclick = () => { const s = st(), t = TOOLS.find(t => t.id === tool); if (t.kind === "line") s.lines[tool] = []; else s.goals[tool] = null; selected = null; changed(); };
+$("#showfit").onchange = e => { showFit = e.target.checked; draw(); };
+$("#done").onclick = () => { st().status = st().status === "done" ? "" : "done"; changed(); };
+$("#skip").onclick = () => { st().status = st().status === "skip" ? "" : "skip"; changed(); };
+$("#fit-ok").onclick = () => { st().check = st().check === "ok" ? "" : "ok"; changed(); };
+$("#fit-bad").onclick = () => { st().check = st().check === "bad" ? "" : "bad"; changed(); };
+let noteT; $("#note").oninput = e => { st().note = e.target.value; clearTimeout(noteT); noteT = setTimeout(changed, 600); };
+
+// ---- side panel, strip, results ----
+function countState(s) {
+  const lines = LINES.filter(t => s.lines[t.id].length >= 2).length, goals = GOALS.filter(g => s.goals[g.id]).length;
+  return { lines, goals, H: !!solveFrame(s).H };
+}
+function renderDiagram() {
+  const svg = $("#diagram"), x0 = 30, x1 = 230, y0 = 22, y1 = 122, g = 18, ym = (y0 + y1) / 2;
+  const sides = { far: [x0, y0, x1, y0], near: [x0, y1, x1, y1], left: [x0, y0, x0, y1], right: [x1, y0, x1, y1], center: [130, y0, 130, y1] };
+  let h = `<rect x="${x0}" y="${y0}" width="${x1 - x0}" height="${y1 - y0}" fill="none" stroke="var(--line)" stroke-width="1"/>`;
+  for (const t of LINES) { const [a, b, c, d] = sides[t.id], on = tool === t.id;
+    h += `<line x1="${a}" y1="${b}" x2="${c}" y2="${d}" stroke="var(${t.color})" stroke-width="${on ? 7 : 4}" stroke-linecap="round"/>`;
+    h += `<line class="hit" data-tool="${t.id}" x1="${a}" y1="${b}" x2="${c}" y2="${d}" stroke="transparent" stroke-width="18"/>`; }
+  const posts = { l_far: [x0, ym - g], l_near: [x0, ym + g], r_far: [x1, ym - g], r_near: [x1, ym + g] };
+  for (const [id, [px, py]] of Object.entries(posts)) { const on = tool === id;
+    h += `<rect class="hit" data-tool="${id}" x="${px - (on ? 6 : 4.5)}" y="${py - (on ? 6 : 4.5)}" width="${on ? 12 : 9}" height="${on ? 12 : 9}" transform="rotate(45 ${px} ${py})" fill="var(--panel)" stroke="var(--ink)" stroke-width="1.5"/>`; }
+  h += `<text x="130" y="14" text-anchor="middle" font-size="11" fill="var(--muted)" font-family="var(--mono)">far rail</text>`;
+  h += `<text x="130" y="140" text-anchor="middle" font-size="11" fill="var(--muted)" font-family="var(--mono)">near rail (camera side)</text>`;
+  h += `<text x="20" y="${ym + 4}" text-anchor="end" font-size="11" fill="var(--muted)" font-family="var(--mono)">L</text><text x="240" y="${ym + 4}" font-size="11" fill="var(--muted)" font-family="var(--mono)">R</text>`;
+  svg.innerHTML = h;
+  svg.querySelectorAll(".hit").forEach(el => el.addEventListener("click", () => { tool = el.dataset.tool; refresh(); }));
+}
+function renderSide() {
+  const s = st();
+  $("#tools").innerHTML = TOOLS.map((t, i) => {
+    const n = t.kind === "line" ? s.lines[t.id].length : (s.goals[t.id] ? 1 : 0);
+    const ct = t.kind === "line" ? (n === 1 ? `<span class="ct need">1 pt</span>` : `<span class="ct">${n} pts</span>`) : `<span class="ct">${n ? "set" : "–"}</span>`;
+    return `<button class="tool" data-tool="${t.id}" aria-pressed="${tool === t.id}"><span class="sw" style="background:var(${t.color})"></span><span>${t.name}</span>${ct}<kbd>${i + 1}</kbd></button>`;
+  }).join("");
+  $("#tools").querySelectorAll(".tool").forEach(b => b.onclick = () => { tool = b.dataset.tool; refresh(); });
+  renderDiagram();
+  const c = countState(s), sol = solveFrame(s);
+  let msg = c.H ? `Grid fitted from ${sol.image.length} edge crossings.` : "The grid appears once the far rail, the near rail and two of left end, right end or center line each have 2 points.";
+  if (c.H) {
+    const Hi = invert3(sol.H), gw = [["l_far", "l_near"], ["r_far", "r_near"]].map(([a, b]) => s.goals[a] && s.goals[b] ? Math.abs(applyH(Hi, s.goals[a].u, s.goals[a].v).v - applyH(Hi, s.goals[b].u, s.goals[b].v).v) : null).filter(x => x != null);
+    if (gw.length) msg += ` Goal width ≈ ${gw.map(x => (x * 100).toFixed(1) + " cm").join(", ")}.`;
+  }
+  $("#fitline").textContent = msg;
+  $("#done").classList.toggle("on", s.status === "done"); $("#skip").classList.toggle("on", s.status === "skip");
+  $("#done").disabled = $("#skip").disabled = $("#undo").disabled = $("#clear").disabled = !db;
+  if (document.activeElement !== $("#note")) $("#note").value = s.note || "";
+  $("#note").disabled = !db;
+  renderResult();
+}
+function badge(s) {
+  if (s.status === "done") return `<span class="badge done">done</span>`;
+  if (s.status === "skip") return `<span class="badge skip">can't tell</span>`;
+  const c = countState(s); return c.lines ? `<span class="badge part">${c.lines} edges</span>` : `<span class="badge">to do</span>`;
+}
+function renderStrip() {
+  $("#strip").innerHTML = DATA.frames.map((f, i) => `<button class="fr" data-i="${i}" aria-current="${i === cur}"><img src="${f.thumb}" alt="" loading="lazy"><span class="nm">${f.video_name} · ${f.angle}</span><span class="st"><span>${f.play_min.toFixed(1)} min play</span>${badge(state.get(f.name))}</span></button>`).join("");
+  $("#strip").querySelectorAll(".fr").forEach(b => b.onclick = () => go(+b.dataset.i));
+  const done = DATA.frames.filter(f => ["done", "skip"].includes(state.get(f.name).status)).length;
+  $("#progress").textContent = db ? `${done} of ${DATA.frames.length} framings done` : "Clicks can't be saved in this view. Open the page on claude.ai while signed in to place points.";
+}
+function renderResult() {
+  const r = DATA.results?.[frame().name], s = st();
+  $("#result").hidden = !r; if (!r) return;
+  $("#r-overlay").src = r.overlay; $("#r-top").src = r.top;
+  $("#stats").innerHTML = [["edge rms", r.rms_px.toFixed(2) + " px"], ["focal", r.f_px ? Math.round(r.f_px) + " px" : "n/a"],
+    ["camera", r.cam ? `(${r.cam.map(v => v.toFixed(2)).join(", ")}) m` : "n/a"], ["goal width", r.goal_width ? (r.goal_width * 100).toFixed(1) + " cm" : "–"]]
+    .map(([k, v]) => `<span><b>${k}</b>${v}</span>`).join("");
+  $("#stale").hidden = !(s.updated && r.clicks_updated && s.updated > r.clicks_updated);
+  $("#fit-ok").classList.toggle("on", s.check === "ok"); $("#fit-bad").classList.toggle("on", s.check === "bad");
+  $("#fit-ok").disabled = $("#fit-bad").disabled = !db;
+}
+function go(i) {
+  cur = i; selected = null; tool = "far";
+  const f = frame();
+  $("#title").textContent = `${f.video_name} · ${f.angle}`;
+  $("#meta").textContent = `${f.name} · ${f.play_min.toFixed(1)} min of play · ${f.w}×${f.h}`;
+  img.onload = () => draw(); img.src = f.src;
+  fitView(); renderStrip(); refresh();
+  $("#strip").querySelector(`[data-i="${i}"]`)?.scrollIntoView({ block: "nearest", inline: "nearest" });
+}
+
+// ---- persistence ----
+let saveT = new Map();
+function dirty() { pending.set(frame().name, true); }
+function changed() {
+  const name = frame().name; pending.set(name, true); st().updated = new Date().toISOString();
+  refresh(); renderStrip();
+  clearTimeout(saveT.get(name)); saveT.set(name, setTimeout(() => save(name), 500));
+}
+async function save(name) {
+  if (!db) return;
+  const s = state.get(name), f = DATA.frames.find(f => f.name === name);
+  const doc = { frame: name, video: f.video, angle: f.angle, w: f.w, h: f.h,
+    lines: Object.fromEntries(LINES.map(t => [t.id, s.lines[t.id].map(p => ({ u: +p.u.toFixed(2), v: +p.v.toFixed(2) }))])),
+    goals: Object.fromEntries(GOALS.map(g => [g.id, s.goals[g.id] ? { u: +s.goals[g.id].u.toFixed(2), v: +s.goals[g.id].v.toFixed(2) } : null])),
+    status: s.status, note: s.note, check: s.check, updated: s.updated };
+  try { await db.collection("landmarks").doc(name).set(doc); pending.delete(name); $("#status").textContent = ""; }
+  catch (e) { $("#status").textContent = e?.code === "quota_exceeded" ? "The store is full, so these clicks weren't saved." : "These clicks couldn't be saved. Check your connection, then move a point to retry."; }
+}
+function load(name, d) {
+  const s = blank();
+  for (const t of LINES) s.lines[t.id] = (d.lines?.[t.id] || []).map(p => ({ u: p.u, v: p.v }));
+  for (const g of GOALS) s.goals[g.id] = d.goals?.[g.id] ? { u: d.goals[g.id].u, v: d.goals[g.id].v } : null;
+  Object.assign(s, { status: d.status || "", note: d.note || "", check: d.check || "", updated: d.updated || "" });
+  state.set(name, s);
+}
+
+go(0);
+(async () => {
+  db = await window.claude?.use?.("db") ?? null;
+  if (!db) { renderStrip(); renderSide(); return; }
+  db.collection("landmarks").onSnapshot(snap => {
+    let reloaded = false;
+    for (const d of snap.docs) {   // skip our own writes echoing back, and frames with unsaved edits
+      if (!state.has(d.id) || pending.has(d.id) || d.data().updated === state.get(d.id).updated) continue;
+      load(d.id, d.data()); if (d.id === frame().name) reloaded = true;
+    }
+    if (reloaded && !drag) selected = null;
+    if (!drag) { refresh(); renderStrip(); }
+  }, () => { db = null; renderStrip(); renderSide(); });
+  renderStrip(); renderSide();
+})();
+</script>

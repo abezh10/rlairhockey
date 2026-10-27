@@ -1,0 +1,7 @@
+# Table model. Coordinates: origin at the table center, x along the long axis, y across, z up, meters.
+# The 8 x 4 ft is taken as the playing surface (inside the rails).
+# In a calibration frame the ends and sides are named as that camera sees them: "left" end = -x, "far" side = +y.
+length_ft: 8
+width_ft: 4
+goal_width: null      # m; measured from clicked goal posts (scripts/fit_calib.py)
+mallet_height: null   # m; h for ray-plane intersection of mallet tops, still to measure
