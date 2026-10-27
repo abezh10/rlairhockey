@@ -1,0 +1,37 @@
+[project]
+name = "rlairhockey"
+version = "0.1.0"
+description = "Air hockey vision pipeline: match videos -> top-down puck/mallet trajectories for IL/RL"
+requires-python = ">=3.11,<3.13"
+dependencies = [
+    # footage
+    "yt-dlp[default]",
+    "deno",                 # JS runtime yt-dlp needs for YouTube
+    # vision / models
+    "torch",
+    "torchvision",
+    "rfdetr",
+    "supervision",
+    "opencv-python-headless",
+    "av",                   # exact per-frame timestamps (PTS)
+    "scenedetect[opencv-headless]",  # shot/cut detection
+    # geometry, tracking, data
+    "numpy",
+    "scipy",
+    "filterpy",
+    "pandas",
+    "pyarrow",
+    "matplotlib",
+    "tqdm",
+    "pyyaml",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "ipykernel"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/rlairhockey"]

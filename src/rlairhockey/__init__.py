@@ -1,0 +1,1 @@
+"""Air hockey vision pipeline."""

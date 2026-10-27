@@ -1,0 +1,9 @@
+.venv/
+.uv-cache/
+tools/bin/
+data/
+models/
+outputs/
+__pycache__/
+*.egg-info/
+.ipynb_checkpoints/
