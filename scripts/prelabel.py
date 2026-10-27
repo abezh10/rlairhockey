@@ -3,22 +3,27 @@
   predict  runs the model on every frame in data/frames/<set>/ (compute node; no network) and caches
            every box above --keep in data/labels/<set>/prelabel_<model>.json, with scores.
   upload   (login node) lists the Roboflow project and, for each image that still has no annotation, tags
-           it --tag and then saves the boxes scoring >= --threshold. It never overwrites: Roboflow
-           refuses with "already annotated" if you labeled the image meanwhile, and the tag is taken back off.
+           it --tag and then saves the boxes scoring at least that class's --threshold. It never overwrites: it
+           skips images that already have boxes (checked per image, since Roboflow's search index lags), and if
+           you label one between that check and the save, Roboflow refuses with "already annotated" and the tag
+           comes back off.
            Images stay in their labeling batch, so they don't join the Dataset by themselves.
 
 Review in Roboflow: filter images by the tag, fix the boxes, then remove the tag. scripts/roboflow_pull.py
 skips anything still tagged, so unreviewed model boxes never become training labels.
 Usage: python scripts/prelabel.py predict [--model v1]
-       python scripts/prelabel.py upload [--model v1] [--threshold 0.4] [--dry-run]
+       python scripts/prelabel.py upload [--model v1] [--threshold puck=0.2,mallet=0.3,hand=0.5] [--dry-run]
 """
 import argparse
 import json
 import os
+import time
+from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import pandas as pd
+import requests
 from dotenv import load_dotenv
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -73,31 +78,57 @@ def upload(a: argparse.Namespace, out: Path) -> None:
     todo = [x for x in blank if x["name"] in preds]
     if a.limit:
         todo = todo[:a.limit]
-    boxes = {x["name"]: [b for b in preds[x["name"]]["boxes"] if b["score"] >= a.threshold] for x in todo}
-    n_box = sum(map(len, boxes.values()))
+    thr = {k: float(v) for k, v in (kv.split("=") for kv in a.threshold.split(","))}
+    boxes = {x["name"]: [b for b in preds[x["name"]]["boxes"] if b["score"] >= thr[b["label"]]] for x in todo}
+    n_box = Counter(b["label"] for bs in boxes.values() for b in bs)
     print(f"{len(listed)} images in {a.project}, {len(blank)} without labels, {len(todo)} to pre-label "
-          f"with {n_box} boxes at score >= {a.threshold}")
+          f"with boxes {dict(n_box)} at score >= {thr}")
     if a.dry_run:
         return
 
+    def call(fn, *args, **kw):
+        # Roboflow answers bursts with "Too Many Requests"; back off and retry.
+        for i in range(7):
+            try:
+                return fn(*args, **kw)
+            except Exception as e:
+                if i == 6 or not ("Too Many Requests" in str(e) or "429" in str(e)):
+                    raise
+                time.sleep(2 ** i)
+
+    def detail(image_id: str) -> dict:
+        r = requests.get(f"https://api.roboflow.com/{ws}/{a.project}/images/{image_id}", params={"api_key": key}, timeout=60)
+        if r.status_code == 429:
+            raise RuntimeError("Too Many Requests")
+        r.raise_for_status()
+        return r.json()["image"]
+
     def send(x: dict) -> tuple[str, str]:
-        p = preds[x["name"]]
-        rfapi.update_image_metadata(key, ws, x["id"], add_tags=[a.tag])     # tag first: never an untagged pre-label
         try:
-            project.save_annotation(annotation_path=dict(name=Path(x["name"]).stem + ".xml",
-                                                         rawText=voc(x["name"], p["width"], p["height"], boxes[x["name"]])),
-                                    image_id=x["id"], annotation_overwrite=False, add_to_dataset=False, num_retry_uploads=2)
+            # The search index lags behind, so check the image itself: skip anything with boxes,
+            # whether you labeled it or an earlier run pre-labeled it.
+            im = call(detail, x["id"])
+            if (im.get("annotation") or {}).get("boxes"):
+                return x["name"], "has boxes"
+            if a.tag not in (im.get("tags") or []):
+                call(rfapi.update_image_metadata, key, ws, x["id"], add_tags=[a.tag])   # tag first: never an untagged pre-label
+            p = preds[x["name"]]
+            res, _, _ = call(project.save_annotation, annotation_path=dict(
+                name=Path(x["name"]).stem + ".xml", rawText=voc(x["name"], p["width"], p["height"], boxes[x["name"]])),
+                image_id=x["id"], annotation_overwrite=False, add_to_dataset=False)
+            if res.get("warn"):     # "already annotated": you labeled it since the check, so it isn't ours to tag
+                call(rfapi.update_image_metadata, key, ws, x["id"], remove_tags=[a.tag])
+                return x["name"], "has boxes"
             return x["name"], "ok"
-        except Exception as e:
-            rfapi.update_image_metadata(key, ws, x["id"], remove_tags=[a.tag])
-            return x["name"], f"skipped ({e})"
+        except Exception as e:      # a tag left on a still-blank image is harmless; a rerun finishes it
+            return x["name"], f"failed ({e})"
 
     with ThreadPoolExecutor(a.jobs) as ex:
         results = list(ex.map(send, todo))
     for f, r in results:
-        if r != "ok":
+        if r.startswith("failed"):
             print(f"  {f}: {r}")
-    print(f"{sum(r == 'ok' for _, r in results)}/{len(todo)} pre-labeled and tagged '{a.tag}'")
+    print(f"{dict(Counter(r.split(' (')[0] for _, r in results))}; pre-labeled images are tagged '{a.tag}'")
 
 
 def main() -> None:
@@ -109,10 +140,12 @@ def main() -> None:
     ap.add_argument("--resolution", type=int, default=1280)
     ap.add_argument("--batch", type=int, default=8)
     ap.add_argument("--keep", type=float, default=0.2, help="predict: cache boxes scoring at least this")
-    ap.add_argument("--threshold", type=float, default=0.4, help="upload: send boxes scoring at least this")
+    # v1 on the 22 valid frames: puck 0.2 finds one more puck at no extra false boxes, mallet is clean from
+    # 0.3, and half of the hands under 0.5 are hands that weren't labeled.
+    ap.add_argument("--threshold", default="puck=0.2,mallet=0.3,hand=0.5", help="upload: per-class minimum score")
     ap.add_argument("--tag", default="prelabel")
     ap.add_argument("--limit", type=int, default=0, help="upload: only this many images (0 = all)")
-    ap.add_argument("--jobs", type=int, default=8)
+    ap.add_argument("--jobs", type=int, default=4)
     ap.add_argument("--dry-run", action="store_true")
     a = ap.parse_args()
     out = ROOT / "data/labels" / a.set / f"prelabel_{a.model}.json"
