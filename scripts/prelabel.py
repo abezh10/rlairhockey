@@ -105,7 +105,10 @@ def upload(a: argparse.Namespace, out: Path) -> None:
     # Skip anything with boxes, whether you labeled it or an earlier run pre-labeled it.
     ims = check(todo)
     has_boxes = [x for x in todo if (ims[x["name"]].get("annotation") or {}).get("boxes")]
-    todo = [x for x in todo if x not in has_boxes]
+    # A frame the model finds nothing in stays blank: saving an empty annotation would look like a
+    # "no objects" label in Roboflow and hide the frame from the unlabeled queue.
+    empty = [x for x in todo if not boxes[x["name"]]]
+    todo = [x for x in todo if x not in has_boxes and x not in empty]
     # Tag first, so a pre-label is never untagged. Tags go in batch calls: the per-image tag endpoint
     # allows only 500 calls a day.
     untagged = [x for x in todo if not tagged(ims[x["name"]])]
@@ -126,20 +129,20 @@ def upload(a: argparse.Namespace, out: Path) -> None:
                 image_id=x["id"], annotation_overwrite=False, add_to_dataset=False, num_retry_uploads=3)
         except Exception as e:              # tagged but still blank: harmless, a rerun finishes it
             return x, f"failed ({e})"
-        return x, "labeled by you" if res.get("warn") else "ok"   # warn = "already annotated" since the check
+        return x, "already annotated" if res.get("warn") else "ok"   # e.g. labeled, or marked "no objects", by you
 
     with ThreadPoolExecutor(a.jobs) as ex:
         results = list(ex.map(save, ready))
-    yours = [x for x, r in results if r == "labeled by you"]
+    yours = [x for x, r in results if r == "already annotated"]
     if yours:                               # the tag on these isn't ours to keep
         rfapi.batch_update_image_metadata(key, ws, [dict(imageId=x["id"], removeTags=[a.tag]) for x in yours])
-        print(f"  removed '{a.tag}' from {len(yours)} images you labeled meanwhile: {[x['name'] for x in yours]}")
+        print(f"  removed '{a.tag}' from {len(yours)} images Roboflow says are already annotated: {[x['name'] for x in yours]}")
     for x, r in results:
         if r.startswith("failed"):
             print(f"  {x['name']}: {r}")
     counts = Counter(r.split(" (")[0] for _, r in results)
-    print(f"pre-labeled {counts['ok']}, failed {counts['failed']}, labeled by you meanwhile {len(yours)}, "
-          f"already had boxes {len(has_boxes)}, tag didn't show up in time {len(untagged)}"
+    print(f"pre-labeled {counts['ok']}, failed {counts['failed']}, already annotated {len(yours)}, "
+          f"already had boxes {len(has_boxes)}, nothing detected {len(empty)}, tag didn't show up in time {len(untagged)}"
           + ("; rerun to finish" if counts["failed"] or untagged else ""))
 
 
