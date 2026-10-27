@@ -11,6 +11,10 @@ source env.sh                     # venv + ffmpeg on PATH
 Login node has no GPU. Train/infer on the Slurm `gpu` partition (NVIDIA L40S, 46 GB):
 `srun -p gpu --gres=gpu:1 -t 2:00:00 --pty bash`
 
+The home quota is small, so bulky data that can be regenerated lives in `/scratch/users/$USER/rlairhockey` and is
+symlinked into place: `data/raw_videos`, `data/clips`, `data/proxy`, `models/detector`. On a fresh checkout, create
+those directories in scratch and link them the same way before downloading or training.
+
 ## Download footage
 Put one YouTube URL per line in a text file, then:
 ```bash

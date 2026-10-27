@@ -29,9 +29,11 @@ def main() -> None:
     out = ROOT / "models/detector" / a.name
     out.mkdir(parents=True, exist_ok=True)
     model = model_cls(resolution=a.resolution)
+    # Periodic checkpoints are 570 MB each (optimizer state included) and filled the home quota on v1;
+    # keep only last.ckpt plus the small best/EMA .pth weights.
     model.train(dataset_dir=str(ROOT / a.data), output_dir=str(out), epochs=a.epochs, batch_size=a.batch,
                 grad_accum_steps=a.accum, lr=a.lr, log_per_class_metrics=True, run_test=True,
-                progress_bar=None, tensorboard=False, seed=0)
+                checkpoint_interval=a.epochs, progress_bar=None, tensorboard=False, seed=0)
 
 
 if __name__ == "__main__":
