@@ -10,7 +10,7 @@ dependencies = [
     # vision / models
     "torch",
     "torchvision",
-    "rfdetr",
+    "rfdetr[train]",
     "supervision",
     "roboflow",             # labeling: upload frames, pull datasets
     "opencv-python-headless",
