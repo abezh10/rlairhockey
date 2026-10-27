@@ -86,49 +86,61 @@ def upload(a: argparse.Namespace, out: Path) -> None:
     if a.dry_run:
         return
 
-    def call(fn, *args, **kw):
-        # Roboflow answers bursts with "Too Many Requests"; back off and retry.
+    def detail(x: dict) -> dict:
         for i in range(7):
-            try:
-                return fn(*args, **kw)
-            except Exception as e:
-                if i == 6 or not ("Too Many Requests" in str(e) or "429" in str(e)):
-                    raise
-                time.sleep(2 ** i)
-
-    def detail(image_id: str) -> dict:
-        r = requests.get(f"https://api.roboflow.com/{ws}/{a.project}/images/{image_id}", params={"api_key": key}, timeout=60)
-        if r.status_code == 429:
-            raise RuntimeError("Too Many Requests")
+            r = requests.get(f"https://api.roboflow.com/{ws}/{a.project}/images/{x['id']}", params={"api_key": key}, timeout=60)
+            if r.status_code != 429:
+                break
+            time.sleep(2 ** i)
         r.raise_for_status()
         return r.json()["image"]
 
-    def send(x: dict) -> tuple[str, str]:
+    def check(xs: list[dict]) -> dict:   # the search index lags, so read each image's own record
+        with ThreadPoolExecutor(a.jobs) as ex:
+            return dict(zip([x["name"] for x in xs], ex.map(detail, xs)))
+
+    def tagged(im: dict) -> bool:
+        return a.tag in (im.get("tags") or [])
+
+    # Skip anything with boxes, whether you labeled it or an earlier run pre-labeled it.
+    ims = check(todo)
+    has_boxes = [x for x in todo if (ims[x["name"]].get("annotation") or {}).get("boxes")]
+    todo = [x for x in todo if x not in has_boxes]
+    # Tag first, so a pre-label is never untagged. Tags go in batch calls: the per-image tag endpoint
+    # allows only 500 calls a day.
+    untagged = [x for x in todo if not tagged(ims[x["name"]])]
+    for i in range(0, len(untagged), 100):
+        rfapi.batch_update_image_metadata(key, ws, [dict(imageId=x["id"], addTags=[a.tag]) for x in untagged[i:i + 100]])
+    deadline = time.time() + 300           # the batch runs asynchronously; wait until each tag shows up
+    while untagged and time.time() < deadline:
+        time.sleep(5)
+        ims |= check(untagged)
+        untagged = [x for x in untagged if not tagged(ims[x["name"]])]
+    ready = [x for x in todo if tagged(ims[x["name"]])]
+
+    def save(x: dict) -> tuple[dict, str]:
+        p = preds[x["name"]]
         try:
-            # The search index lags behind, so check the image itself: skip anything with boxes,
-            # whether you labeled it or an earlier run pre-labeled it.
-            im = call(detail, x["id"])
-            if (im.get("annotation") or {}).get("boxes"):
-                return x["name"], "has boxes"
-            if a.tag not in (im.get("tags") or []):
-                call(rfapi.update_image_metadata, key, ws, x["id"], add_tags=[a.tag])   # tag first: never an untagged pre-label
-            p = preds[x["name"]]
-            res, _, _ = call(project.save_annotation, annotation_path=dict(
+            res, _, _ = project.save_annotation(annotation_path=dict(
                 name=Path(x["name"]).stem + ".xml", rawText=voc(x["name"], p["width"], p["height"], boxes[x["name"]])),
-                image_id=x["id"], annotation_overwrite=False, add_to_dataset=False)
-            if res.get("warn"):     # "already annotated": you labeled it since the check, so it isn't ours to tag
-                call(rfapi.update_image_metadata, key, ws, x["id"], remove_tags=[a.tag])
-                return x["name"], "has boxes"
-            return x["name"], "ok"
-        except Exception as e:      # a tag left on a still-blank image is harmless; a rerun finishes it
-            return x["name"], f"failed ({e})"
+                image_id=x["id"], annotation_overwrite=False, add_to_dataset=False, num_retry_uploads=3)
+        except Exception as e:              # tagged but still blank: harmless, a rerun finishes it
+            return x, f"failed ({e})"
+        return x, "labeled by you" if res.get("warn") else "ok"   # warn = "already annotated" since the check
 
     with ThreadPoolExecutor(a.jobs) as ex:
-        results = list(ex.map(send, todo))
-    for f, r in results:
+        results = list(ex.map(save, ready))
+    yours = [x for x, r in results if r == "labeled by you"]
+    if yours:                               # the tag on these isn't ours to keep
+        rfapi.batch_update_image_metadata(key, ws, [dict(imageId=x["id"], removeTags=[a.tag]) for x in yours])
+        print(f"  removed '{a.tag}' from {len(yours)} images you labeled meanwhile: {[x['name'] for x in yours]}")
+    for x, r in results:
         if r.startswith("failed"):
-            print(f"  {f}: {r}")
-    print(f"{dict(Counter(r.split(' (')[0] for _, r in results))}; pre-labeled images are tagged '{a.tag}'")
+            print(f"  {x['name']}: {r}")
+    counts = Counter(r.split(" (")[0] for _, r in results)
+    print(f"pre-labeled {counts['ok']}, failed {counts['failed']}, labeled by you meanwhile {len(yours)}, "
+          f"already had boxes {len(has_boxes)}, tag didn't show up in time {len(untagged)}"
+          + ("; rerun to finish" if counts["failed"] or untagged else ""))
 
 
 def main() -> None:
