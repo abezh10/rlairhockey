@@ -23,7 +23,9 @@ def main() -> None:
     ap.add_argument("--set", default="detector")
     ap.add_argument("--project", default="airhockey-objects")
     ap.add_argument("--type", default="object-detection")
-    ap.add_argument("--annotation", default="puck, puck_streak, mallet, hand")
+    # Roboflow's annotation group name; it also becomes a default label, so keep it one word.
+    # Labels are created while annotating: puck (blurred pucks too), mallet, hand.
+    ap.add_argument("--annotation", default="objects")
     ap.add_argument("--batch", default=None, help="Roboflow batch name (default: the frame set)")
     ap.add_argument("--license", default="Private", help='project license; free (public) workspaces need e.g. "CC BY 4.0"')
     ap.add_argument("--jobs", type=int, default=8)
