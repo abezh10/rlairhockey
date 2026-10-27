@@ -4,7 +4,8 @@ Reads each labeled image's annotation through the API, keeps only the classes we
 (puck, mallet, hand; a stray "puck-streak" becomes puck), and splits by camera framing: about
 --valid of each framing's frames go to valid, chosen by a hash of the file name so the split
 stays put as more frames are labeled. test/ mirrors valid/ (RF-DETR expects all three).
-Images are symlinks to data/frames/<set>/.
+Images are symlinks to data/frames/<set>/. Images still tagged --skip-tag (model pre-labels you haven't
+reviewed yet; scripts/prelabel.py) are left out.
 
 Writes data/labels/<set>/roboflow_raw.json (the raw pull) and data/labels/<set>/<name>/{train,valid,test}/.
 Usage: python scripts/roboflow_pull.py [--set detector] [--name v1] [--valid 0.2]
@@ -32,6 +33,7 @@ def main() -> None:
     ap.add_argument("--project", default="airhockey-objects")
     ap.add_argument("--name", default="v1")
     ap.add_argument("--valid", type=float, default=0.2)
+    ap.add_argument("--skip-tag", default="prelabel", help="leave out images with this tag (unreviewed pre-labels)")
     a = ap.parse_args()
     load_dotenv(ROOT / ".env")
     key, ws = os.environ["ROBOFLOW_API_KEY"], os.environ["ROBOFLOW_WORKSPACE"]
@@ -54,9 +56,14 @@ def main() -> None:
 
     with ThreadPoolExecutor(8) as ex:
         raw = list(ex.map(detail, labeled))
+    pending = [im for im in raw if a.skip_tag in (im.get("tags") or [])]
+    raw = [im for im in raw if a.skip_tag not in (im.get("tags") or [])]
+    if pending:
+        print(f"left out {len(pending)} images still tagged '{a.skip_tag}' (not reviewed yet)")
     out = ROOT / "data/labels" / a.set
     out.mkdir(parents=True, exist_ok=True)
-    (out / "roboflow_raw.json").write_text(json.dumps(raw))
+    # Roboflow's image embeddings are most of the payload and unused here; dropping them keeps the tracked file small.
+    (out / "roboflow_raw.json").write_text(json.dumps([{k: v for k, v in im.items() if k != "embedding"} for im in raw]))
 
     man = pd.read_csv(ROOT / "data/frames" / a.set / "manifest.csv").set_index("file")
     split = {}
