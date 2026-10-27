@@ -48,8 +48,8 @@
     ],
     "left": [
       {
-        "u": 330,
-        "v": 578
+        "u": 322.99,
+        "v": 578.35
       },
       {
         "u": 580,
@@ -74,7 +74,7 @@
   },
   "note": "Claude's first guess. One end is hidden, so check where the far end of the grid lands.",
   "status": "done",
-  "updated": "2026-10-27T03:47:43.802Z",
+  "updated": "2026-10-27T04:03:18.169Z",
   "video": "ilGhVvwdVyE",
   "w": 1920
 }

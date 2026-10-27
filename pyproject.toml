@@ -12,6 +12,7 @@ dependencies = [
     "torchvision",
     "rfdetr",
     "supervision",
+    "roboflow",             # labeling: upload frames, pull datasets
     "opencv-python-headless",
     "av",                   # exact per-frame timestamps (PTS)
     "scenedetect[opencv-headless]",  # shot/cut detection

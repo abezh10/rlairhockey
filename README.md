@@ -70,3 +70,9 @@ pixels and a centered principal point; `Camera.to_table(uv, z=h)` intersects ray
 python scripts/sample_frames.py --n 500   # -> data/frames/detector/*.jpg + manifest.csv
 ```
 Spread over videos and framings (square root of play time each), weighted toward motion on the table so fast pucks show up.
+
+Upload to Roboflow (credentials in `.env`, git-ignored; copy `.env.example`, and `env.sh` exports them):
+```bash
+python scripts/roboflow_upload.py --dry-run   # checks files and credentials
+python scripts/roboflow_upload.py             # -> project airhockey-objects, tagged by video and framing; resumable
+```
