@@ -2,8 +2,10 @@
 
 A prediction is a hit when it overlaps a not-yet-matched label of its class with IoU >= 0.5 (highest score
 first). Reported at several score thresholds, so models (v1, v2, a Colab run) can be compared on the same
-frames and thresholds chosen. Also saved to models/detector/<model>/eval_<dataset>_<split>.csv.
-Usage: python scripts/eval_detector.py [--model v2] [--data data/labels/detector/v2] [--split valid]
+frames and thresholds chosen. Also saved to models/detector/<model>/eval_<dataset>_<split>[_<tag>].csv.
+Labels that began as a model's pre-labels favor that model, so --frames can restrict scoring to a list:
+data/labels/detector/benchmark_frames.txt holds frames labeled from scratch and held out by v1 and v2.
+Usage: python scripts/eval_detector.py [--model v2] [--data data/labels/detector/v2] [--split valid] [--frames FILE]
 """
 import argparse
 import json
@@ -31,6 +33,7 @@ def main() -> None:
     ap.add_argument("--split", default="valid")
     ap.add_argument("--resolution", type=int, default=1280)
     ap.add_argument("--thresholds", default="0.2,0.3,0.4,0.5,0.6")
+    ap.add_argument("--frames", help="only these frames: a text file of names, or another split's directory")
     a = ap.parse_args()
 
     import torch
@@ -38,8 +41,15 @@ def main() -> None:
     d = ROOT / a.data / a.split
     coco = json.load(open(d / "_annotations.coco.json"))
     names = {c["id"]: c["name"] for c in coco["categories"]}
+    if a.frames:
+        src = ROOT / a.frames
+        keep = ({im["file_name"] for im in json.load(open(src / "_annotations.coco.json"))["images"]} if src.is_dir()
+                else {ln.strip() for ln in open(src) if ln.strip() and not ln.startswith("#")})
+        coco["images"] = [im for im in coco["images"] if im["file_name"] in keep]
     gt = {im["id"]: [] for im in coco["images"]}
     for an in coco["annotations"]:
+        if an["image_id"] not in gt:
+            continue
         x, y, w, h = an["bbox"]
         gt[an["image_id"]].append((names[an["category_id"]], [x, y, x + w, y + h]))
     model = RFDETRMedium(pretrain_weights=str(ROOT / "models/detector" / a.model / "checkpoint_best_total.pth"),
@@ -81,9 +91,10 @@ def main() -> None:
                              precision=round(tp / max(tp + fp, 1), 3), recall=round(tp / max(tp + fn, 1), 3),
                              center_err_px=round(float(np.median(err)), 1) if err else np.nan))
     df = pd.DataFrame(rows)
-    out = ROOT / "models/detector" / a.model / f"eval_{Path(a.data).name}_{a.split}.csv"
+    tag = f"_{Path(a.frames).stem}" if a.frames else ""
+    out = ROOT / "models/detector" / a.model / f"eval_{Path(a.data).name}_{a.split}{tag}.csv"
     df.to_csv(out, index=False)
-    print(f"{a.model} on {a.data}/{a.split} ({len(ims)} frames):")
+    print(f"{a.model} on {a.data}/{a.split}{' (' + a.frames + ')' if a.frames else ''}, {len(ims)} frames:")
     print(df.to_string(index=False))
 
 

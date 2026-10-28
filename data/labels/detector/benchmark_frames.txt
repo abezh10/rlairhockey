@@ -1,0 +1,19 @@
+# Frames labeled from scratch (not pre-labeled) and held out by both v1 and v2: a fair benchmark for any model.
+BR5zW8vHGJU_f067756.jpg
+BR5zW8vHGJU_f070192.jpg
+BR5zW8vHGJU_f070402.jpg
+BR5zW8vHGJU_f072478.jpg
+BR5zW8vHGJU_f073399.jpg
+BR5zW8vHGJU_f074888.jpg
+BR5zW8vHGJU_f075051.jpg
+ep0KRI2pgRw_f004555.jpg
+ep0KRI2pgRw_f008162.jpg
+g2xtRuDjb5o_f049987.jpg
+g2xtRuDjb5o_f052639.jpg
+g2xtRuDjb5o_f062196.jpg
+g2xtRuDjb5o_f081539.jpg
+g2xtRuDjb5o_f090840.jpg
+g2xtRuDjb5o_f093290.jpg
+ilGhVvwdVyE_f014153.jpg
+ilGhVvwdVyE_f041689.jpg
+ilGhVvwdVyE_f043956.jpg

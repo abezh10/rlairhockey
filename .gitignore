@@ -15,6 +15,7 @@ data/frames/*/*
 !data/labels/
 data/labels/*/*
 !data/labels/*/roboflow_raw.json
+!data/labels/*/benchmark_frames.txt
 models/
 outputs/
 __pycache__/
