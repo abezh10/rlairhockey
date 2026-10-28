@@ -4,10 +4,12 @@ Writes data/detections/<model>/<clip>.parquet, one row per box: frame (clip fram
 k0 + k), cls (mallet / puck), score, x0, y0, x1, y1 in source pixels. The score floor is low on purpose:
 the tracker decides what is real (on the playing surface, moving, one puck, one mallet per side).
 Finished clips are skipped, so reruns resume; --shard i/n splits the clips across GPU jobs.
-Usage: python scripts/detect_clips.py [--model v2] [--shard 0/4] [--clips <clip> ...]
+--wait-minutes lets a queued job start before the weights exist (e.g. while they're still being trained or copied).
+Usage: python scripts/detect_clips.py [--model v2] [--shard 0/4] [--clips <clip> ...] [--wait-minutes 90]
 """
 import argparse
 import queue
+import sys
 import threading
 import time
 from pathlib import Path
@@ -53,6 +55,7 @@ def main() -> None:
     ap.add_argument("--shard", default="0/1", help="i/n: this job takes every n-th clip starting at i")
     ap.add_argument("--clips", nargs="*", help="only these clips")
     ap.add_argument("--fp32", action="store_true", help="skip the float16 cast on GPU")
+    ap.add_argument("--wait-minutes", type=float, default=0, help="wait this long for the weights to appear")
     a = ap.parse_args()
 
     import torch
@@ -69,8 +72,14 @@ def main() -> None:
     if not todo:
         return
 
-    model = RFDETRMedium(pretrain_weights=str(ROOT / "models/detector" / a.model / "checkpoint_best_total.pth"),
-                         resolution=a.resolution)
+    weights = ROOT / "models/detector" / a.model / "checkpoint_best_total.pth"
+    deadline = time.time() + 60 * a.wait_minutes
+    while not weights.exists() and time.time() < deadline:
+        time.sleep(30)
+    if not weights.exists():
+        sys.exit(f"no weights at {weights}")
+    time.sleep(10)                                        # let a copy in progress finish
+    model = RFDETRMedium(pretrain_weights=str(weights), resolution=a.resolution)
     if torch.cuda.is_available():
         model.inference(compile=False, dtype=torch.float32 if a.fp32 else torch.float16)
     names = np.array(model.class_names)   # predicted class_id indexes this list
