@@ -80,3 +80,31 @@ Upload to Roboflow (credentials in `.env`, git-ignored; copy `.env.example`, and
 python scripts/roboflow_upload.py --dry-run   # checks files and credentials
 python scripts/roboflow_upload.py             # -> project airhockey-objects, tagged by video and framing; resumable
 ```
+
+Pre-label the rest with a trained model, then review in Roboflow:
+```bash
+sbatch scripts/slurm/prelabel.sbatch            # predictions on CPU -> data/labels/detector/prelabel_<model>.json
+python scripts/prelabel.py upload               # boxes into Roboflow, each image tagged "prelabel"
+```
+Review: filter by the tag, fix the boxes, remove the tag. Frames with nothing visible can be skipped.
+
+## Detector (plan step 2b)
+Classes: `puck` (blurred pucks too) and `mallet`. Hands and puck streaks were dropped (2026-10-27).
+```bash
+python scripts/roboflow_pull.py --name v2                      # reviewed labels -> data/labels/detector/v2 (COCO)
+sbatch scripts/slurm/train_detector.sbatch --data data/labels/detector/v2 --name v2 --epochs 50
+```
+RF-DETR Medium at 1280 px (pucks are 15-50 px wide). v1 (112 frames, 12 min on one L40S): AP50:95 puck 0.81,
+mallet 0.81 on 22 held-out frames.
+
+## Detection and tracking (plan steps 4-5)
+```bash
+sbatch --array=0-3 scripts/slurm/detect_clips.sbatch --model v2   # every box >= 0.1 -> data/detections/v2/<clip>.parquet
+python scripts/track_clips.py --model v2                          # -> data/tracks/v2/<clip>.parquet + stats.csv
+python scripts/render_tracks.py <clip> --model v2                 # top-down picture -> outputs/tracks/v2/<clip>.png
+```
+The tracker (`src/rlairhockey/track.py`, settings in `configs/track.yaml`) keeps one puck and one mallet per
+table half. It drops detections off the playing surface, then parked spares: a puck or mallet that sits
+still for most of a clip while another candidate of its kind is in view. A lone resting puck is never dropped.
+Each target's path is then picked by dynamic programming over detection scores, step lengths and gaps, and
+smoothed with a constant-velocity Kalman/RTS pass. Tracks are in each clip's camera frame for now.
