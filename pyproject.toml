@@ -2,7 +2,7 @@
 name = "rlairhockey"
 version = "0.1.0"
 description = "Air hockey vision pipeline: match videos -> top-down puck/mallet trajectories for IL/RL"
-requires-python = ">=3.11,<3.13"
+requires-python = ">=3.11"
 dependencies = [
     # footage
     "yt-dlp[default]",
