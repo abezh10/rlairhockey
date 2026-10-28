@@ -49,6 +49,8 @@ def fit_homography(world_xy: np.ndarray, image_uv: np.ndarray) -> np.ndarray:
 
 def apply_h(H: np.ndarray, pts) -> np.ndarray:
     p = np.asarray(pts, np.float64).reshape(-1, 1, 2)
+    if not len(p):                      # cv2 returns None for an empty array
+        return np.empty((0, 2))
     return cv2.perspectiveTransform(p, H).reshape(-1, 2)
 
 

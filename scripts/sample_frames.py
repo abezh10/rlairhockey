@@ -81,7 +81,7 @@ def main() -> None:
                 if all(abs(t - c) >= a.min_gap for c in chosen):
                     chosen.append(t)
                     clip = gclips[(gclips.start <= t) & (gclips.end > t)].iloc[0]
-                    rows.append(dict(video=vid, group=g, angle=clip.angle, clip=clip.clip, t=round(t, 4),
+                    rows.append(dict(video=vid, group=g, angle=clip.angle, clip=clip["clip"], t=round(t, 4),
                                      frame=int(round(t * clip.fps)), motion=round(float(motion[i]), 4)))
                 if len(chosen) == alloc[g]:
                     break

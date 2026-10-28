@@ -1,0 +1,27 @@
+# Tracker settings (src/rlairhockey/track.py). Distances in m, speeds in m/s, times in s.
+min_score: 0.15       # detections below this are ignored (detect_clips.py saves down to 0.1)
+puck:
+  z: 0.003            # height of the box center (pucks are ~5 mm thick)
+  vmax: 30            # fastest plausible puck; pro shots reach ~20 m/s
+  margin: 0.05        # how far outside the surface a detection may land (calibration error)
+  goal_depth: 0.15    # extra room past an end rail inside the goal mouth
+mallet:
+  z: 0.04             # height of the box center; mallets are ~9 cm tall
+  vmax: 10
+  margin: 0.08
+  center_overlap: 0.05  # a mallet's center may sit this far over the center line
+path:                 # dynamic-programming costs, per frame unless noted
+  max_skip: 0.25      # longest gap between detections bridged with a motion check
+  w_score: 1.0        # reward for a detection on the path, times its score
+  w_move: 0.5         # cost of a step, times (distance / farthest plausible distance)
+  w_dist: 1.0         # plus this per meter, so detours out to a stray box and back don't pay
+  gap: 0.3            # cost of a frame without a detection
+  lost: 3.0           # cost of losing the target and picking it up again anywhere
+parked:               # a spare puck or mallet that sits still while another candidate is in play
+  radius: 0.03
+  min_frac: 0.5       # present in at least this fraction of the clip's frames
+  coexist: 0.3        # with another candidate of its kind in view in at least this fraction of them
+smooth:               # constant-velocity Kalman filter + RTS smoother
+  max_gap: 0.2        # fill gaps up to this long; longer gaps stay empty
+  meas_sigma: {puck: 0.01, mallet: 0.02}
+  accel_sigma: {puck: 60, mallet: 25}
