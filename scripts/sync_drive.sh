@@ -7,19 +7,21 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 REMOTE=${RCLONE_REMOTE:-gdrive}:rlairhockey
+# --timeout retries a transfer that stalls (one hung on a single clip); stats go to the log at NOTICE level
+RC=(rclone --timeout 2m --stats 30s --stats-one-line --stats-log-level NOTICE)
 case "${1:-}" in
   push)
     shift
     vids=("$@")
     [ ${#vids[@]} -gt 0 ] || vids=($(cd data/clips && ls -d */ | tr -d /))
     for v in "${vids[@]}"; do
-      rclone copy --copy-links --stats-one-line --stats 30s "data/clips/$v" "$REMOTE/data/clips/$v"
+      "${RC[@]}" copy --copy-links "data/clips/$v" "$REMOTE/data/clips/$v"
     done
-    rclone copy --stats-one-line data/calib/frames "$REMOTE/data/calib/frames"
+    "${RC[@]}" copy data/calib/frames "$REMOTE/data/calib/frames"
     ;;
   pull)
     m=${2:?usage: sync_drive.sh pull <model>}
-    rclone copy --stats-one-line "$REMOTE/models/detector/$m" "models/detector/$m"
+    "${RC[@]}" copy "$REMOTE/models/detector/$m" "models/detector/$m"
     ;;
   *)
     sed -n 2,7p "$0"
