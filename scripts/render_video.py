@@ -5,7 +5,7 @@ and each tracked object's smoothed position is drawn back into the image as a ri
 table (the framing's median frame, warped) with the puck and both mallets at true size, their trails
 over the last --trail seconds, and the puck's speed.
 Writes outputs/videos/<model>/<clip>.mp4 (H.264, so browsers and Colab can play it).
-Usage: python scripts/render_video.py <clip> [<clip> ...] [--model v2] [--height 540]
+Usage: python scripts/render_video.py <clip> [<clip> ...] [--model v2] [--height 540] [--seconds 40]
 """
 import argparse
 import json
@@ -25,7 +25,7 @@ COLOR = {"puck": (0, 230, 255), "mallet_l": (255, 140, 0), "mallet_r": (60, 60, 
 RADIUS = {"puck": 0.041, "mallet_l": 0.05, "mallet_r": 0.05}                            # m
 
 
-def render(clip: str, model: str, height: int, trail: float, crf: int) -> Path:
+def render(clip: str, model: str, height: int, trail: float, crf: int, seconds: float = 0) -> Path:
     table, cfg = Table.load(), load_config()
     fits = json.load(open(ROOT / "data/calib/fits.json"))
     r = pd.read_csv(ROOT / "data/clips/clips.csv", keep_default_na=False).set_index("clip").loc[clip]
@@ -63,8 +63,8 @@ def render(clip: str, model: str, height: int, trail: float, crf: int) -> Path:
                            stdin=subprocess.PIPE)
     n_trail = max(1, int(trail * r.fps))
     z = {"puck": cfg["puck"]["z"], "mallet_l": cfg["mallet"]["z"], "mallet_r": cfg["mallet"]["z"]}
-    k = 0
-    while True:
+    k, last = 0, int(seconds * r.fps) if seconds else r.frames
+    while k < last:
         ok, im = cap.read()
         if not ok:
             break
@@ -117,9 +117,10 @@ def main() -> None:
     ap.add_argument("--height", type=int, default=540)
     ap.add_argument("--trail", type=float, default=1.0, help="seconds of trail behind each object")
     ap.add_argument("--crf", type=int, default=26)
+    ap.add_argument("--seconds", type=float, default=0, help="render only the first this many seconds (0 = all)")
     a = ap.parse_args()
     for c in a.clips:
-        print(render(c, a.model, a.height, a.trail, a.crf))
+        print(render(c, a.model, a.height, a.trail, a.crf, a.seconds))
 
 
 if __name__ == "__main__":

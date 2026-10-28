@@ -108,3 +108,21 @@ table half. It drops detections off the playing surface, then parked spares: a p
 still for most of a clip while another candidate of its kind is in view. A lone resting puck is never dropped.
 Each target's path is then picked by dynamic programming over detection scores, step lengths and gaps, and
 smoothed with a constant-velocity Kalman/RTS pass. Tracks are in each clip's camera frame for now.
+
+## Training on Colab
+`notebooks/colab_detector.ipynb` trains the detector, evaluates it, and detects, tracks and renders clips. Training
+needs only the Roboflow keys: labels and frames come from Roboflow. Clips come from Google Drive, laid out like the
+repo under `My Drive/rlairhockey/` (`data/clips/<video>/`, `data/calib/frames/`).
+
+One-time rclone setup on the cluster (rclone is installed; it needs your browser once). From your laptop:
+```bash
+ssh -L 53682:localhost:53682 <sunet>@login.farmshare.stanford.edu    # forwards rclone's sign-in page
+rclone config create gdrive drive scope=drive                        # open the printed 127.0.0.1:53682 link, sign in
+```
+Then:
+```bash
+scripts/sync_drive.sh push          # clips (~4.6 GB) and calibration frames -> Drive
+scripts/sync_drive.sh pull <model>  # a model trained on Colab -> models/detector/<model>
+```
+In Colab: open the notebook from GitHub (File → Open notebook → GitHub → `abezh10/rlairhockey`), pick a GPU runtime,
+add the secrets `ROBOFLOW_API_KEY` and `ROBOFLOW_WORKSPACE`, and run all cells.
