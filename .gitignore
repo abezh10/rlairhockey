@@ -6,6 +6,12 @@ data/*
 data/calib/*
 !data/calib/clicks/
 !data/calib/fits.json
+!data/clips/
+data/clips/*
+!data/clips/clips.csv
+!data/frames/
+data/frames/*/*
+!data/frames/*/manifest.csv
 !data/labels/
 data/labels/*/*
 !data/labels/*/roboflow_raw.json

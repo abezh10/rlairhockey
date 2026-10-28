@@ -4,7 +4,8 @@ Reads each labeled image's annotation through the API, keeps only the classes we
 (puck, mallet; a stray "puck-streak" becomes puck, and hand boxes are dropped), and splits by camera framing: about
 --valid of each framing's frames go to valid, chosen by a hash of the file name so the split
 stays put as more frames are labeled. test/ mirrors valid/ (RF-DETR expects all three).
-Images are symlinks to data/frames/<set>/. Images still tagged --skip-tag (model pre-labels you haven't
+Images are symlinks to data/frames/<set>/; frames missing there (e.g. on Colab) are downloaded from
+Roboflow first. Images still tagged --skip-tag (model pre-labels you haven't
 reviewed yet; scripts/prelabel.py) are left out.
 
 Writes data/labels/<set>/roboflow_raw.json (the raw pull) and data/labels/<set>/<name>/{train,valid,test}/.
@@ -96,6 +97,17 @@ def main() -> None:
 
     ds = out / a.name
     frames = ROOT / "data/frames" / a.set
+    missing = [im for im in raw if not (frames / im["name"]).exists()]
+    if missing:
+        print(f"downloading {len(missing)} frames from Roboflow")
+
+        def fetch(im: dict) -> None:
+            r = requests.get(im["urls"]["original"], timeout=120)
+            r.raise_for_status()
+            (frames / im["name"]).write_bytes(r.content)
+
+        with ThreadPoolExecutor(8) as ex:
+            list(ex.map(fetch, missing))
     for s, dirs in (("train", ["train"]), ("valid", ["valid", "test"])):
         for d in dirs:
             (ds / d).mkdir(parents=True, exist_ok=True)
