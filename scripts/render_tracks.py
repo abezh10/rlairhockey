@@ -1,7 +1,8 @@
 """Draw a clip's tracks over the top-down view of its camera framing, for checking by eye.
 
 Smoothed paths are lines (puck shaded from dark at the clip start to bright at its end; mallets in their
-own colors); detections the tracker used are dots, and detections it rejected are small gray crosses.
+own colors; the puck's runs through each impact's contact point, and stretches the tracker bridged over a
+gap are thin); detections the tracker used are dots, and detections it rejected are small gray crosses.
 Puck impacts are rings: green for a rail or end-wall bounce, the mallet's color for a strike, magenta
 for an unexplained velocity jump.
 Writes outputs/tracks/<model>/<clip>.png.
@@ -16,7 +17,7 @@ import numpy as np
 import pandas as pd
 
 from rlairhockey.geometry import Camera, Table, apply_h
-from rlairhockey.render import topdown, topdown_transform
+from rlairhockey.render import path_points, topdown, topdown_transform
 from rlairhockey.track import load_config, to_table
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -50,20 +51,21 @@ def main() -> None:
             if (round(x, 5), round(y, 5)) not in used:
                 u, v = px([[x, y]])[0]
                 cv2.drawMarker(img, (int(u), int(v)), (160, 160, 160), cv2.MARKER_TILTED_CROSS, 6, 1)
+        ev_path = ROOT / "data/tracks" / a.model / "events" / f"{c}.parquet"
+        events = pd.read_parquet(ev_path) if ev_path.exists() else None
         for obj, t in tr.groupby("obj"):
             t = t.sort_values("frame")
-            p = px(t[["x", "y"]].to_numpy())
-            ok = np.isfinite(t.x.to_numpy())
+            _, xy, thin = path_points(t, events if obj == "puck" else None, r.fps)
+            p, ok = px(np.nan_to_num(xy)), np.isfinite(xy[:, 0])
             for i in range(1, len(p)):
                 if ok[i] and ok[i - 1]:
                     f = i / len(p)
                     col = (0, int(80 + 175 * f), int(80 + 175 * f)) if obj == "puck" else COLORS[obj]
-                    cv2.line(img, tuple(p[i - 1]), tuple(p[i]), col, 2, cv2.LINE_AA)
+                    cv2.line(img, tuple(p[i - 1]), tuple(p[i]), col, 1 if thin[i] else 2, cv2.LINE_AA)
             for u, v in px(t[["x_det", "y_det"]].dropna().to_numpy()):
                 cv2.circle(img, (int(u), int(v)), 2, (255, 255, 255) if obj == "puck" else COLORS[obj], -1)
-        ev_path = ROOT / "data/tracks" / a.model / "events" / f"{c}.parquet"
-        if ev_path.exists():
-            for e in pd.read_parquet(ev_path).itertuples():
+        if events is not None:
+            for e in events.itertuples():
                 u, v = px([[e.x, e.y]])[0]
                 col = {"rail": (80, 255, 80), "end": (80, 255, 80), "other": (255, 0, 255)}.get(e.kind) or COLORS[e.kind]
                 cv2.circle(img, (int(u), int(v)), 9, col, 2, cv2.LINE_AA)

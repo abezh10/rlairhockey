@@ -37,6 +37,7 @@ def main() -> None:
     a = ap.parse_args()
     clips = pd.read_csv(ROOT / "data/clips/clips.csv", keep_default_na=False)
     clips["group"] = clips.video + "_" + clips.angle.replace("", "nocam")
+    clips["gap_before"] = pd.to_numeric(clips.gap_before, errors="coerce")   # "" (first clip) reads as text
     tdir = ROOT / "data/tracks" / a.model
     rows = []
     for vid, c in clips.groupby("video"):
@@ -71,10 +72,12 @@ def main() -> None:
     if not len(sw):
         print("no live switches with tracks on both sides")
         return
-    sw["verdict"] = np.where(sw.err_same < sw.err_rotated, "same", "rotated")
+    sw["verdict"] = np.select([sw.err_same.isna(), sw.err_rotated.isna() | (sw.err_same < sw.err_rotated)],
+                              ["no overlap", "same"], "rotated")   # rotated can lack a match (one mallet seen)
     sw.to_csv(tdir / "switches.csv", index=False)
     pair = sw.groupby(["from_group", "to_group"]).agg(
         switches=("verdict", "size"), same=("verdict", lambda v: (v == "same").sum()),
+        rotated=("verdict", lambda v: (v == "rotated").sum()),
         err_same=("err_same", "median"), err_rotated=("err_rotated", "median")).round(3)
     print(pair.to_string())
 

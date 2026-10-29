@@ -38,3 +38,7 @@ impacts:              # where the puck's velocity jumps: a rail, an end wall, a 
   mallet_r: 0.05
   mallet_tol: 0.10    # a strike when a mallet comes within touching distance plus this (+-2 frames)
   rail_tol: 0.12      # a bounce when the contact is within this of the rail line (calibration error)
+fill:                 # puck gaps longer than smooth.max_gap (an arm in the way, a missed fast puck): track.py, bridge()
+  max: 1.0            # s; longer gaps stay empty
+  bounce_cost: 0.3    # m/s added for a wall bounce inside the gap (scores are velocity mismatch at the ends, m/s)
+  impact_cost: 1.0    # m/s added for an impact inside the gap (a free corner fits almost anything)

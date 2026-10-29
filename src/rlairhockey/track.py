@@ -17,6 +17,9 @@ For each clip:
      round the corner and blend the velocities in and out over several frames. So the puck's path is first
      split where its motion stops being smooth (impacts()), each impact is identified by where it happened,
      and the pieces between impacts are smoothed separately and extrapolated to meet at the impact.
+     Gaps too long for the smoother (an arm over the puck, a fast puck missed for a few frames) are
+     bridged up to fill.max seconds by the likeliest straight-line path: no corner, one wall bounce, or
+     one impact (bridge()). Those frames are flagged `filled`.
 
 Mallets can't cross the center line, so each half is its own single-target problem: mallet_l on x < 0,
 mallet_r on x > 0. Coordinates are in the clip's camera frame (geometry.py: "left" = -x as that camera
@@ -279,19 +282,80 @@ def impact(t: np.ndarray, xy: np.ndarray, a: tuple, b: tuple, mallets: dict, fps
     return (ev, k) if dv >= cfg["other_dv"] else None
 
 
+def bridge(pa: np.ndarray, va: np.ndarray, pb: np.ndarray, vb: np.ndarray, T: float, table: Table,
+           cfg: dict) -> tuple[list, dict | None]:
+    """The puck's likeliest path across a gap of T seconds from (pa, va) to (pb, vb): a straight line, one
+    bounce off a rail or end wall (a straight line once pb is mirrored across that wall), or two straight
+    legs meeting where the lines in and out come closest: on the wall if that's next to one and the puck
+    was moving into it and away (a bounce that lost speed), else an impact. Each is scored by how far its
+    velocities in and out are from va and vb, plus a cost for the corner it adds. Returns the path as
+    (time in the gap, point) knots and the bounce or impact on it (t relative to the gap start), if any."""
+    c = cfg["fill"]
+    cost = lambda v_in, v_out: float(np.linalg.norm(np.r_[v_in - va, v_out - vb]))
+    v = (pb - pa) / T
+    best = (cost(v, v), [(0.0, pa), (T, pb)], None)
+    r = cfg["impacts"]["puck_r"]
+    for kind, ax, half in (("rail", 1, table.width / 2), ("end", 0, table.length / 2)):
+        for s in (1, -1):
+            wall = s * (half - r)
+            pm = pb.copy()
+            pm[ax] = 2 * wall - pb[ax]                            # pb mirrored across the wall
+            v_in = (pm - pa) / T
+            if s * (pm[ax] - wall) <= 0 or s * (wall - pa[ax]) < 0 or s * v_in[ax] <= 0:
+                continue                                          # the straight line must cross the wall
+            tc = (wall - pa[ax]) / v_in[ax]
+            hit = pa + v_in * tc
+            if kind == "end" and table.goal_width and abs(hit[1]) < table.goal_width / 2 - r:
+                continue                                          # that's the goal mouth, not a wall
+            v_out = v_in.copy()
+            v_out[ax] *= -1
+            k = cost(v_in, v_out) + c["bounce_cost"]
+            if k < best[0]:
+                into, away = s * va[ax], -s * vb[ax]
+                ev = dict(t=tc, x=hit[0], y=hit[1], vx_in=v_in[0], vy_in=v_in[1], vx_out=v_out[0], vy_out=v_out[1],
+                          kind=kind, offset=0.0, restitution=away / into if into > 0 and away > 0 else np.nan)
+                best = (k, [(0.0, pa), (tc, hit), (T, pb)], ev)
+    dv = va - vb                                                  # the in and out lines' closest approach
+    d0 = pa - pb + vb * T
+    s = float(np.clip(-d0 @ dv / max(dv @ dv, 1e-9), 0.5 * T / 8, T - 0.5 * T / 8))
+    hit = (pa + va * s + pb + vb * (s - T)) / 2
+    hit = np.clip(hit, [-table.length / 2 + r, -table.width / 2 + r], [table.length / 2 - r, table.width / 2 - r])
+    kind, extra, rest = "other", c["impact_cost"], np.nan
+    for wall_kind, ax, half in (("rail", 1, table.width / 2), ("end", 0, table.length / 2)):
+        sg, lim = np.sign(hit[ax]), half - r                     # a corner by a wall, moving into it and away:
+        into, away = sg * va[ax], -sg * vb[ax]                    # a bounce that lost speed, so put it on the wall
+        mouth = wall_kind == "end" and table.goal_width and abs(hit[1]) < table.goal_width / 2 - r
+        if abs(hit[ax]) > lim - cfg["impacts"]["rail_tol"] and into > 0 and away > 0 and not mouth:
+            hit[ax] = sg * lim
+            kind, extra, rest = wall_kind, c["bounce_cost"], away / into
+            break
+    v_in, v_out = (hit - pa) / s, (pb - hit) / (T - s)
+    k = cost(v_in, v_out) + extra
+    if k < best[0]:
+        ev = dict(t=s, x=hit[0], y=hit[1], vx_in=v_in[0], vy_in=v_in[1], vx_out=v_out[0], vy_out=v_out[1],
+                  kind=kind, offset=0.0 if kind != "other" else np.nan, restitution=rest)
+        best = (k, [(0.0, pa), (s, hit), (T, pb)], ev)
+    return best[1], best[2]
+
+
 def smooth_puck(frames: np.ndarray, xy: np.ndarray, n_frames: int, fps: float, mallets: dict, table: Table,
-                cfg: dict) -> tuple[np.ndarray, pd.DataFrame]:
-    """smooth() for the puck, with its velocity free to jump at impacts (see impact()). Returns the
-    (n_frames, 4) track and the impacts (t, frame = first frame after it, kind, contact x, y, velocities
-    in and out, and for bounces the contact's distance past the rail line and the normal restitution)."""
+                cfg: dict) -> tuple[np.ndarray, pd.DataFrame, np.ndarray]:
+    """smooth() for the puck, with its velocity free to jump at impacts (see impact()), and gaps up to
+    fill.max seconds bridged (see bridge()). Returns the (n_frames, 4) track; the impacts (t, frame = first
+    frame after it, kind, contact x, y, velocities in and out, for bounces the contact's distance past the
+    rail line and the normal restitution, and seen = False for one inferred inside a gap); and a mask of
+    the frames filled in by a bridge."""
     sm, ic = cfg["smooth"], cfg["impacts"]
     args = (sm["meas_sigma"]["puck"], sm["accel_sigma"]["puck"], sm["max_gap"])
     out = np.full((n_frames, 4), np.nan)
+    filled = np.zeros(n_frames, bool)
     events = []
     t = frames / fps
+    ends = []                                     # (first, last) frame of each run
     for run in np.split(np.arange(len(frames)), np.flatnonzero(np.diff(frames) - 1 > sm["max_gap"] * fps) + 1):
         if not len(run):
             continue
+        ends.append((frames[run[0]], frames[run[-1]]))
         ps = [(run[0] + a, run[0] + b) for a, b in pieces(t[run], xy[run], ic)]
         joined, cuts = [ps[0]], []                # pieces with an impact between them
         for p in ps[1:]:
@@ -312,16 +376,38 @@ def smooth_puck(frames: np.ndarray, xy: np.ndarray, n_frames: int, fps: float, m
                     src = fa if f / fps < ev["t"] else fb
                     out[f, :2] = out[src, :2] + out[src, 2:] * (f - src) / fps
                     out[f, 2:] = out[src, 2:]
-        events += cuts
+        events += [dict(e, seen=True) for e in cuts]
+    reach = ic["puck_r"] + ic["mallet_r"] + ic["mallet_tol"]
+    for (_, fa), (fb, _) in zip(ends[:-1], ends[1:]):
+        if (fb - fa - 1) / fps > cfg["fill"]["max"]:
+            continue
+        T = (fb - fa) / fps
+        knots, ev = bridge(out[fa, :2], out[fa, 2:], out[fb, :2], out[fb, 2:], T, table, cfg)
+        ks, kp = np.array([k[0] for k in knots]), np.array([k[1] for k in knots])
+        for f in range(fa + 1, fb):
+            s = (f - fa) / fps
+            i = min(int(np.searchsorted(ks, s)) - 1, len(ks) - 2)
+            v = (kp[i + 1] - kp[i]) / (ks[i + 1] - ks[i])
+            out[f] = np.r_[kp[i] + v * (s - ks[i]), v]
+        filled[fa + 1:fb] = True
+        if ev is not None:
+            ev["t"] += fa / fps
+            if ev["kind"] == "other":                  # a mallet there at the time makes it a strike
+                f = int(round(ev["t"] * fps))
+                near = {o: np.hypot(*(m[f, :2] - [ev["x"], ev["y"]])) for o, m in mallets.items() if np.isfinite(m[f, 0])}
+                near = {o: d for o, d in near.items() if d <= reach}
+                if near:
+                    ev["kind"] = min(near, key=near.get)
+            events.append(dict(ev, seen=False))
     ev = pd.DataFrame(events, columns=["t", "x", "y", "vx_in", "vy_in", "vx_out", "vy_out", "kind", "offset",
-                                       "restitution"])
+                                       "restitution", "seen"]).sort_values("t", ignore_index=True)
     ev.insert(1, "frame", np.ceil(ev.t * fps - 1e-6).astype(int))
-    return out, ev
+    return out, ev, filled
 
 
 @dataclass
 class ClipTracks:
-    tracks: pd.DataFrame          # frame, obj, x, y, vx, vy, x_det, y_det, score (NaN when not detected), event
+    tracks: pd.DataFrame          # frame, obj, x, y, vx, vy, x_det, y_det, score (NaN when not detected), event, filled
     events: pd.DataFrame          # puck impacts, see smooth_puck()
     stats: dict
 
@@ -348,8 +434,9 @@ def track_clip(det: pd.DataFrame, n_frames: int, fps: float, cam: Camera, table:
         path = d.iloc[best_path(d, n_frames, fps, cfg[cls]["vmax"], cfg)] if len(d) else d
         fr, xy = path.frame.to_numpy(), path[["x", "y"]].to_numpy()
         event = np.full(n_frames, "", object)
+        filled = np.zeros(n_frames, bool)
         if obj == "puck":
-            s, events = smooth_puck(fr, xy, n_frames, fps, smoothed, table, cfg)
+            s, events, filled = smooth_puck(fr, xy, n_frames, fps, smoothed, table, cfg)
             event[events.frame.clip(0, n_frames - 1)] = events.kind
             for k, v in events.kind.value_counts().items():
                 stats[f"puck_{k}"] = int(v)
@@ -361,7 +448,7 @@ def track_clip(det: pd.DataFrame, n_frames: int, fps: float, cam: Camera, table:
         raw[fr] = path[["x", "y", "score"]].to_numpy()
         rows[obj] = pd.DataFrame(dict(frame=np.arange(n_frames, dtype=np.int32), obj=obj,
                                       x=s[:, 0], y=s[:, 1], vx=s[:, 2], vy=s[:, 3],
-                                      x_det=raw[:, 0], y_det=raw[:, 1], score=raw[:, 2], event=event))
+                                      x_det=raw[:, 0], y_det=raw[:, 1], score=raw[:, 2], event=event, filled=filled))
         stats[f"{obj}_detected"] = round(len(path) / n_frames, 3)
         stats[f"{obj}_covered"] = round(float(np.isfinite(s[:, 0]).mean()), 3)
     return ClipTracks(pd.concat([rows[o] for o in OBJECTS], ignore_index=True), events, stats)

@@ -3,9 +3,11 @@
 Left: the broadcast frame. Every detection is a thin box (colored if the tracker used it, gray if not)
 and each tracked object's smoothed position is drawn back into the image as a ring. Right: the top-down
 table (the framing's median frame, warped) with the puck and both mallets at true size, their trails
-over the last --trail seconds, and the puck's speed. Each puck impact (a rail or end-wall bounce, a
+over the last --trail seconds, and the puck's speed. The puck's trail runs through each impact's contact
+point, so a bounce between two frames still touches the rail. Each impact (a rail or end-wall bounce, a
 mallet strike, or an unexplained velocity jump) shows for half a second as a ring at the contact point,
-labeled with its cause (and for bounces the restitution).
+labeled with its cause (and for bounces the restitution); "(gap)" marks one inferred inside a gap the
+tracker bridged. Bridged stretches of the puck's path are drawn thin, and its rings there thin too.
 Writes outputs/videos/<model>/<clip>.mp4 (H.264, so browsers and Colab can play it).
 Usage: python scripts/render_video.py <clip> [<clip> ...] [--model v2] [--height 540] [--seconds 40]
 """
@@ -19,7 +21,7 @@ import numpy as np
 import pandas as pd
 
 from rlairhockey.geometry import Camera, Table, apply_h
-from rlairhockey.render import topdown, topdown_transform
+from rlairhockey.render import path_points, topdown, topdown_transform
 from rlairhockey.track import OBJECTS, load_config, to_table
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -49,6 +51,7 @@ def render(clip: str, model: str, height: int, trail: float, crf: int, seconds: 
     ev_path = ROOT / "data/tracks" / model / "events" / f"{clip}.parquet"
     events = pd.read_parquet(ev_path) if ev_path.exists() else pd.DataFrame(columns=["t", "frame", "x", "y", "kind"])
     n_show = int(0.5 * r.fps)
+    trails = {o: path_points(t, events if o == "puck" else None, r.fps) for o, t in T.items()}
     used = {}                                   # (frame, rounded x, y) of each detection on a path -> object
     for o, t in T.items():
         for f, x, y in t[["frame", "x_det", "y_det"]].dropna().to_numpy():
@@ -88,19 +91,20 @@ def render(clip: str, model: str, height: int, trail: float, crf: int, seconds: 
             t = T.get(o)
             if t is None or k >= len(t):
                 continue
-            seg = t.iloc[max(0, k - n_trail):k + 1]
-            pts = top_px(seg[["x", "y"]].to_numpy())
-            fin = np.isfinite(seg.x.to_numpy())
+            tt, xy, thin = trails[o]
+            i0, i1 = np.searchsorted(tt, (k - n_trail) / r.fps), np.searchsorted(tt, k / r.fps + 1e-9, "right")
+            pts, ok = top_px(np.nan_to_num(xy[i0:i1])), np.isfinite(xy[i0:i1, 0])
             for i in range(1, len(pts)):
-                if fin[i] and fin[i - 1]:
+                if ok[i] and ok[i - 1]:
                     fade = 0.3 + 0.7 * i / len(pts)
-                    cv2.line(right, tuple(pts[i - 1]), tuple(pts[i]), tuple(int(c * fade) for c in COLOR[o]), 2, cv2.LINE_AA)
+                    cv2.line(right, tuple(pts[i - 1]), tuple(pts[i]), tuple(int(c * fade) for c in COLOR[o]),
+                             1 if thin[i0 + i] else 2, cv2.LINE_AA)
             cur = t.iloc[k]
             if np.isfinite(cur.x):
                 c = tuple(top_px([[cur.x, cur.y]])[0])
                 cv2.circle(right, c, max(3, int(RADIUS[o] * ppm * k_top)), COLOR[o], 2 if np.isnan(cur.score) else -1, cv2.LINE_AA)
                 u, v = cam.project([[cur.x, cur.y, z[o]]])[0] * k_cam
-                cv2.circle(left, (int(u), int(v)), 9, COLOR[o], 2, cv2.LINE_AA)
+                cv2.circle(left, (int(u), int(v)), 9, COLOR[o], 1 if cur.get("filled", False) else 2, cv2.LINE_AA)
                 if o == "puck":
                     lines.append(f"puck {np.hypot(cur.vx, cur.vy):4.1f} m/s")
         for e in events[(events.frame <= k) & (events.frame > k - n_show)].itertuples():
@@ -109,6 +113,7 @@ def render(clip: str, model: str, height: int, trail: float, crf: int, seconds: 
             col = tuple(int(v * (0.4 + 0.6 * fade)) for v in IMPACT[e.kind])
             cv2.circle(right, c, int(RADIUS["puck"] * ppm * k_top) + 6, col, 2, cv2.LINE_AA)
             label = f"{e.kind} e={e.restitution:.2f}" if e.kind in ("rail", "end") else e.kind
+            label += "" if getattr(e, "seen", True) else " (gap)"
             cv2.putText(right, label, (c[0] + 12, c[1] - 8), cv2.FONT_HERSHEY_SIMPLEX, 0.45, col, 1, cv2.LINE_AA)
         cv2.putText(right, f"{clip}  {k / r.fps:5.2f} s", (10, 24), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
         for i, s in enumerate(lines):

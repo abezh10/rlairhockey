@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import cv2
 import numpy as np
+import pandas as pd
 
 from rlairhockey.geometry import Table, apply_h
 
@@ -68,3 +69,18 @@ def topdown(img: np.ndarray, H: np.ndarray, table: Table, ppm: float = 250, marg
             color, th = STYLE[kind]
             cv2.polylines(out, [np.round(apply_h(S, pts) * 4).astype(np.int32)], False, color, th, cv2.LINE_AA, shift=2)
     return out
+
+
+def path_points(t: pd.DataFrame, events: pd.DataFrame | None, fps: float) -> tuple:
+    """An object's path as (times, xy, thin): one point per frame, plus each impact's contact point at its
+    own time (between frames), so lines drawn through them touch the rail where the puck did. thin marks
+    points whose segment from the previous point touches a bridged (inferred) stretch."""
+    tt, xy = t.frame.to_numpy() / fps, t[["x", "y"]].to_numpy(float)
+    thin = np.array(t["filled"], bool) if "filled" in t else np.zeros(len(t), bool)
+    if events is not None and len(events):
+        seen = events["seen"].to_numpy(bool) if "seen" in events else np.ones(len(events), bool)
+        tt, xy, thin = np.r_[tt, events.t], np.r_[xy, events[["x", "y"]].to_numpy(float)], np.r_[thin, ~seen]
+        order = np.argsort(tt, kind="stable")
+        tt, xy, thin = tt[order], xy[order], thin[order]
+    thin[1:] |= thin[:-1]                                 # a segment touching an inferred point is inferred
+    return tt, xy, thin

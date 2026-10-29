@@ -67,7 +67,7 @@ def test_puck_bounce_and_strike_are_sharp_impacts():
     p = np.where(t[:, None] < 2, p, hit + np.array([-4.0, 0.5]) * (t[:, None] - 2))
     mallet = np.full((n, 4), np.nan)
     mallet[:, :2] = hit + [0.09, 0]                 # waiting just beside the strike point
-    s, ev = smooth_puck(np.arange(n), p + rng.normal(0, 0.005, p.shape), n, FPS, {"mallet_r": mallet}, table, cfg)
+    s, ev, _ = smooth_puck(np.arange(n), p + rng.normal(0, 0.005, p.shape), n, FPS, {"mallet_r": mallet}, table, cfg)
     assert list(ev.kind) == ["rail", "mallet_r"]
     assert abs(ev.t[0] - 1) < 0.5 / FPS and abs(ev.y[0] - rail) < 0.02 and abs(ev.restitution[0] - 0.8) < 0.1
     assert abs(ev.t[1] - 2) < 0.5 / FPS
@@ -80,5 +80,34 @@ def test_straight_noisy_puck_has_no_impacts():
     cfg, table = load_config(), Table.load()
     t = np.arange(150) / FPS
     p = np.c_[-1 + 0.4 * t, 0.3 - 0.1 * t] + np.random.default_rng(3).normal(0, 0.015, (150, 2))
-    s, ev = smooth_puck(np.arange(150), p, 150, FPS, {}, table, cfg)
+    s, ev, _ = smooth_puck(np.arange(150), p, 150, FPS, {}, table, cfg)
     assert len(ev) == 0 and np.isfinite(s[:, 0]).all()
+
+
+def test_gap_over_a_bounce_is_bridged_through_the_rail():
+    from rlairhockey.geometry import Table
+    from rlairhockey.track import smooth_puck
+    cfg, table = load_config(), Table.load()
+    rail = table.width / 2 - cfg["impacts"]["puck_r"]
+    n = 90
+    t = np.arange(n) / FPS
+    vin, vout = np.array([1.0, 2.0]), np.array([1.0, -2.0])
+    p = np.where(t[:, None] < 1.5, [0, rail] + vin * (t[:, None] - 1.5), [0, rail] + vout * (t[:, None] - 1.5))
+    seen = (t < 1.25) | (t > 1.75)                   # the bounce itself is hidden for half a second
+    s, ev, filled = smooth_puck(np.flatnonzero(seen), p[seen], n, FPS, {}, table, cfg)
+    assert filled[~seen].all() and not filled[seen].any()
+    assert list(ev.kind) == ["rail"] and not ev.seen[0]
+    assert abs(ev.t[0] - 1.5) < 1 / FPS and abs(ev.x[0]) < 0.03
+    assert np.allclose(s[~seen, :2], p[~seen], atol=0.03)
+
+
+def test_gap_in_straight_motion_is_bridged_straight():
+    from rlairhockey.geometry import Table
+    from rlairhockey.track import smooth_puck
+    cfg, table = load_config(), Table.load()
+    t = np.arange(60) / FPS
+    p = np.c_[-0.6 + 0.8 * t, 0.1 + 0.2 * t]
+    seen = (t < 0.6) | (t > 1.2)
+    s, ev, filled = smooth_puck(np.flatnonzero(seen), p[seen], 60, FPS, {}, table, cfg)
+    assert len(ev) == 0 and filled[~seen].all()
+    assert np.allclose(s[:, :2], p, atol=0.01)

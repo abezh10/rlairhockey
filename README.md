@@ -119,6 +119,15 @@ point, velocities in and out, cause, and for bounces the restitution and the con
 line) goes to `data/tracks/<model>/events/<clip>.parquet`, and the track's `event` column marks the first frame
 after it.
 
+Gaps in the puck's path that are too long for the smoother (an arm over the puck, a fast puck missed for a few
+frames) are bridged up to `fill.max` (1 s) by the straight-line path that best matches its motion on both sides:
+no corner, one bounce on a wall, or one impact. Bridged frames have `filled` set, and an impact inferred inside a
+gap has `seen` false, so a dataset can mask or down-weight them.
+
+`python scripts/check_switches.py --model v2` compares positions just before and after each live camera switch
+(-> `data/tracks/v2/switches.csv`): it confirms the cameras share one table frame (none is rotated 180 degrees)
+and how well their positions agree across the cut.
+
 ## Training on Colab
 `notebooks/colab_detector.ipynb` trains the detector, evaluates it, and detects, tracks and renders clips. Training
 needs only the Roboflow keys: labels and frames come from Roboflow. Clips come from Google Drive, laid out like the
