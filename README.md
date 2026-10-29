@@ -105,6 +105,8 @@ python scripts/track_clips.py --model v2                          # -> data/trac
 python scripts/fit_walls.py --model v2                            # rails to where the puck bounces -> data/calib/walls.json
 python scripts/render_tracks.py <clip> --model v2                 # top-down picture -> outputs/tracks/v2/<clip>.png
 python scripts/render_video.py <clip> --model v2 --seconds 60     # 2 x 2 video -> outputs/videos/v2/<clip>.mp4
+python scripts/score_changes.py                                   # scoreboard digits -> data/clips/score/<clip>.npz
+python scripts/check_goals.py --model v2                          # detected goals vs the scoreboard
 ```
 `scripts/slurm/track_walls.sh <model>` runs tracking and the wall fit together (track, fit, track, fit, track).
 
@@ -155,6 +157,24 @@ to 16, accelerating hard (over 10 m/s^2) in free flight from 15,728 frames to 97
 (warped footage) with trails and impacts; a plain diagram of the table with only the puck (and its velocity) and
 the mallets; and a live graph of the last 4 s of positions along and across the table and the puck's speed, with
 its impacts as ticks.
+
+A fast shot off a rail is often seen only once or twice either side of the bounce, too few to split the path
+there, so the tracker also tries a single hidden bounce in short stretches (`hidden_bounce()`: a straight line
+out to the wall and back), and where a repeated frame leaves a picture's time uncertain it tries both times.
+
+### Game events
+`track_clips.py` also runs `src/rlairhockey/game.py` on each clip: data/tracks/<model>/game/<clip>.parquet lists
+goals, pickups (the puck taken off the table without a goal: a timeout, or retrieving a stopped puck), serves,
+shots (with their outcome: goal, save or miss), center-line crossings, and where the puck was lost, put down or
+found; the tracks' `phase` column says, per frame, whether play is live, in setup (puck down, not yet served),
+dead (after a goal or pickup) or unseen. A goal is a puck whose last motion carries it, off the rails, into a
+goal mouth with no mallet in the way. `check_goals.py` checks goals against the broadcast's own scoreboard:
+`score_changes.py` crops each match's points digits (`configs/videos.yaml`), and a point is one player's digit
+changing shape for good. Against it, goals are 96% / 94% precise in the 2024 and 2022 finals, and about 80% of
+points are found (the misses are mostly a fast puck the detector lost on its way in, or a point scored on a
+camera angle that isn't calibrated). In the two 2022 USAA broadcasts the board skips some game-winning points
+and doesn't count shots between games, so their precision reads lower (74%) than it is. The 2023 final's
+red seven-segment digits don't read reliably this way yet.
 
 `python scripts/check_switches.py --model v2` compares positions just before and after each live camera switch
 (-> `data/tracks/v2/switches.csv`): it confirms the cameras share one table frame (none is rotated 180 degrees)

@@ -11,7 +11,11 @@ tracker bridged. Bridged stretches of the puck's path are drawn thin, and its ri
 Bottom left, the same table as a plain diagram: only the puck and mallets where the tracker puts them,
 with short trails and the puck's velocity as an arrow (where it will be in 0.1 s).
 Bottom right, a live graph of the last --window seconds: each object's position along and across the
-table, and the puck's speed with its impacts as ticks.
+table, and the puck's speed with its impacts as ticks; above them a band colored by the phase of play
+(game.py) with the game events marked.
+Every view shows the moment the footage shows: a repeated frame holds them all still, and in a clip made
+by pulldown the picture's own time (track.retime()) is used, not the frame's.
+Game events (goals, the puck picked up, serves, shots) are announced across the top of the footage.
 Writes outputs/videos/<model>/<clip>.mp4 (H.264, so browsers and Colab can play it).
 Usage: python scripts/render_video.py <clip> [<clip> ...] [--model v2] [--height 450] [--seconds 40]
 """
@@ -25,7 +29,7 @@ import pandas as pd
 
 from rlairhockey.geometry import Table, apply_h, load_framing
 from rlairhockey.render import STYLE, diagram, path_points, table_lines, table_view
-from rlairhockey.track import OBJECTS, load_config, picture_times, to_table
+from rlairhockey.track import OBJECTS, load_config, to_table
 
 ROOT = Path(__file__).resolve().parents[1]
 COLOR = {"puck": (0, 230, 255), "mallet_l": (255, 140, 0), "mallet_r": (60, 60, 255)}   # BGR
@@ -33,6 +37,11 @@ NAME = {"puck": "puck", "mallet_l": "mallet L", "mallet_r": "mallet R"}
 RADIUS = {"puck": 0.041, "mallet_l": 0.05, "mallet_r": 0.05}                            # m
 IMPACT = {"rail": (80, 255, 80), "end": (80, 255, 80), "mallet_l": COLOR["mallet_l"], "mallet_r": COLOR["mallet_r"],
           "other": (255, 0, 255)}
+PLAYER = {"mallet_l": "left", "mallet_r": "right"}
+GAME = {"goal": ((0, 140, 255), 2.5, "GOAL  in the {side} goal"), "pickup": ((255, 150, 220), 2.0, "PUCK PICKED UP"),
+        "serve": ((255, 255, 0), 1.2, "SERVE  {player} player"), "shot": ((255, 255, 255), 1.2, "SHOT  {player} player: {detail}"),
+        "lost": ((160, 160, 160), 1.0, "PUCK LOST"), "placed": ((200, 200, 200), 1.0, "PUCK PUT DOWN")}   # BGR, s shown
+PHASE = {"live": (80, 190, 80), "setup": (0, 190, 255), "dead": (110, 110, 110), "unseen": (55, 55, 55)}
 FONT = cv2.FONT_HERSHEY_SIMPLEX
 
 
@@ -57,12 +66,16 @@ def segments(pts: np.ndarray, ok: np.ndarray, thin: np.ndarray):
 
 class Graph:
     """The live graph: the last `window` seconds of each object's x (along the table) and y (across), and
-    the puck's speed with ticks at its impacts, scrolling so that now is the right edge."""
+    the puck's speed with ticks at its impacts, scrolling so that now is the right edge. Above them, a band
+    colored by phase, with goals and pickups as lines through every strip and serves and shots as ticks."""
 
-    def __init__(self, T: dict, events: pd.DataFrame, fps: float, table: Table, size: tuple, window: float):
+    def __init__(self, T: dict, events: pd.DataFrame, game: pd.DataFrame, phase: np.ndarray, fps: float,
+                 table: Table, size: tuple, window: float):
         self.fps, self.events, self.n_win = fps, events, max(2, int(round(window * fps)))
+        self.game, self.phase = game[game.kind.isin(["goal", "pickup", "serve", "shot"])], phase
         w, h = size
-        self.x0, self.x1, top, bottom = 52, w - 12, 26, h - 20
+        self.x0, self.x1, top, bottom = 52, w - 12, 46, h - 20
+        self.band = (31, 38)
         L, W = table.length / 2, table.width / 2
         puck = T.get("puck")
         speed = np.hypot(puck.vx, puck.vy).to_numpy() if puck is not None else np.zeros(1)
@@ -101,18 +114,39 @@ class Graph:
             u = int(round(self.x1 - s * fps * (self.x1 - self.x0) / self.n_win))
             cv2.line(self.base, (u, top), (u, bottom), (44, 44, 44), 1)
             label(self.base, "now" if s == 0 else f"-{s}s", (u - (24 if s == 0 else 12), h - 5), (150, 150, 150), 0.38)
+        self.bottom = bottom
         xs = self.x0 + 4
         for o in OBJECTS:
             label(self.base, NAME[o], (xs, 16), COLOR[o], 0.42)
             xs += 12 + cv2.getTextSize(NAME[o], FONT, 0.42, 1)[0][0]
+        xs += 14
+        for name, col in PHASE.items():
+            label(self.base, name, (xs, 16), col, 0.38)
+            xs += 8 + cv2.getTextSize(name, FONT, 0.38, 1)[0][0]
 
-    def draw(self, k: int) -> np.ndarray:
+    def draw(self, now: float) -> np.ndarray:
+        """The graph at frame time `now` (fractional: a picture's own time)."""
         img = self.base.copy()
-        f0 = k - self.n_win
+        k = int(np.floor(now))
+        f0 = now - self.n_win
         u = lambda f: self.x0 + (np.asarray(f, float) - f0) * (self.x1 - self.x0) / self.n_win
+        a, b = max(0, int(np.ceil(f0))), min(k + 1, len(self.phase))
+        if b > a:                                                 # the phase band
+            us = np.round(u(np.r_[a:b, b])).astype(int)
+            for i, f in enumerate(range(a, b)):
+                cv2.rectangle(img, (us[i], self.band[0]), (max(us[i + 1] - 1, us[i]), self.band[1]),
+                              PHASE.get(self.phase[f], PHASE["unseen"]), -1)
+        for e in self.game[(self.game.t * self.fps > f0) & (self.game.t * self.fps <= now)].itertuples():
+            ue = int(round(float(u(e.t * self.fps))))
+            col = GAME[e.kind][0]
+            if e.kind in ("goal", "pickup"):
+                cv2.line(img, (ue, self.band[0] - 4), (ue, self.bottom), col, 2)
+            else:
+                cv2.line(img, (ue, self.band[0] - 4), (ue, self.band[1] + 4), col, 2)
+            label(img, e.kind, (ue + 3, self.band[0] - 3), col, 0.36)
         for ya, yb, key, series in self.strips:
             for o, (val, thin) in series.items():
-                a, b = max(0, f0), min(k + 1, len(val))
+                a, b = max(0, int(np.ceil(f0))), min(k + 1, len(val))
                 if b - a < 2:
                     continue
                 pts = np.c_[u(np.arange(a, b)), val[a:b]]
@@ -122,7 +156,7 @@ class Graph:
                 if ok[-1] and b == k + 1:
                     cv2.circle(img, (int(pts[-1, 0]), int(pts[-1, 1])), 3, COLOR[o], -1, cv2.LINE_AA)
             if key == "speed":
-                for e in self.events[(self.events.t * self.fps > f0) & (self.events.t * self.fps <= k)].itertuples():
+                for e in self.events[(self.events.t * self.fps > f0) & (self.events.t * self.fps <= now)].itertuples():
                     ue = int(round(float(u(e.t * self.fps))))
                     cv2.line(img, (ue, yb - 10), (ue, yb), IMPACT[e.kind], 2)
         return img
@@ -151,9 +185,16 @@ def render(clip: str, model: str, height: int, trail: float, crf: int, seconds: 
     det = to_table(det[det.score >= cfg["min_score"]], cam, cfg, A)
     tr = pd.read_parquet(ROOT / "data/tracks" / model / f"{clip}.parquet")
     T = {o: t.sort_values("frame").reset_index(drop=True) for o, t in tr.groupby("obj")}
+    S = {o: (t[["x", "y", "vx", "vy"]].to_numpy(float), t.score.to_numpy(float), t["filled"].to_numpy(bool))
+         for o, t in T.items()}
     ev_path = ROOT / "data/tracks" / model / "events" / f"{clip}.parquet"
     events = pd.read_parquet(ev_path) if ev_path.exists() else pd.DataFrame(columns=["t", "frame", "x", "y", "kind"])
-    n_show = int(0.5 * r.fps)
+    game_path = ROOT / "data/tracks" / model / "game" / f"{clip}.parquet"
+    game = pd.read_parquet(game_path) if game_path.exists() else pd.DataFrame(columns=["t", "frame", "kind", "side", "by", "x", "y", "detail"])
+    puck = T["puck"]
+    phase = puck.phase.to_numpy() if "phase" in puck else np.full(len(puck), "unseen", object)
+    # every view shows the moment the footage shows: each frame's picture time (track.retime())
+    shown = puck.picture.to_numpy(float) if "picture" in puck else np.arange(r.frames, dtype=float)
     trails = {o: path_points(t, events if o == "puck" else None, r.fps) for o, t in T.items()}
     used = {}                                   # rounded (x, y) of each detection on a path -> object
     for o, t in T.items():
@@ -161,12 +202,19 @@ def render(clip: str, model: str, height: int, trail: float, crf: int, seconds: 
             used[(round(x, 4), round(y, 4))] = o
     det["obj"] = [used.get((round(x, 4), round(y, 4)), "") for x, y in det[["x", "y"]].to_numpy()]
     by_frame = dict(tuple(det.groupby("frame")))
-    # the camera view shows each frame's picture, taken at its own time (repeats and pulldown: track.retime())
-    shown = np.arange(r.frames, dtype=float)
-    ch_path = ROOT / "data/clips/changes" / f"{clip}.npy"
-    if ch_path.exists():
-        shown = pd.Series(picture_times(det, np.load(ch_path), r.frames, cfg)).ffill().fillna(0).to_numpy()
-    graph = Graph(T, events, r.fps, table, (cw, ch), window)
+    graph = Graph(T, events, game, phase, r.fps, table, (cw, ch), window)
+
+    def state(o: str, s: float):
+        """o's position and velocity at frame time s, between the frames either side; whether it was detected
+        and whether it was filled in, at the nearer frame."""
+        X, score, filled = S[o]
+        f0 = int(np.clip(np.floor(s), 0, len(X) - 1))
+        f1, a = min(f0 + 1, len(X) - 1), s - np.floor(s)
+        p = (1 - a) * X[f0] + a * X[f1]
+        near = f1 if a >= 0.5 else f0
+        if not np.isfinite(p).all():
+            p = X[near]
+        return p, np.isfinite(score[near]), bool(filled[near])
 
     cap = cv2.VideoCapture(str(ROOT / r.path))
     w_src, h_src = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
@@ -181,11 +229,14 @@ def render(clip: str, model: str, height: int, trail: float, crf: int, seconds: 
                            stdin=subprocess.PIPE)
     n_trail, n_short = max(1, int(trail * r.fps)), max(1, int(0.4 * r.fps))
     z = {"puck": cfg["puck"]["z"], "mallet_l": cfg["mallet"]["z"], "mallet_r": cfg["mallet"]["z"]}
+    L, g = table.length / 2, (table.goal_width or 0) / 2
     k, last = 0, int(seconds * r.fps) if seconds else r.frames
     while k < last:
         ok, im = cap.read()
         if not ok:
             break
+        s = shown[min(k, len(shown) - 1)]
+        now = s / r.fps
         left = np.zeros((ch, cw, 3), np.uint8)
         left[oy:oy + h_cam, ox:ox + w_cam] = cv2.resize(im, (w_cam, h_cam), interpolation=cv2.INTER_AREA)
         if k in by_frame:                       # obj "" = a box the tracker didn't use
@@ -196,56 +247,65 @@ def render(clip: str, model: str, height: int, trail: float, crf: int, seconds: 
                 cv2.rectangle(left, p0, p1, col, 2 if b.obj else 1)
                 cv2.putText(left, f"{b.score:.2f}", (p0[0], p0[1] - 3), FONT, 0.35, col, 1)
         right, bottom = warped.copy(), plain.copy()
+        for e in game[(game.kind == "goal") & (game.t <= now) & (game.t > now - GAME["goal"][1])].itertuples():
+            sx = 1 if e.side == "right" else -1           # light up the goal the puck went in
+            for view in (right, bottom):
+                cv2.line(view, tuple(px([[sx * L, g]])[0]), tuple(px([[sx * L, -g]])[0]), GAME["goal"][0], 8, cv2.LINE_AA)
         for o in OBJECTS:
-            t = T.get(o)
-            if t is None or k >= len(t):
+            if o not in T:
                 continue
+            p, detected, inferred = state(o, s)
             tt, xy, thin = trails[o]
             for view, n_back, dim in ((right, n_trail, 1.0), (bottom, n_short, 0.6)):
-                i0, i1 = np.searchsorted(tt, (k - n_back) / r.fps), np.searchsorted(tt, k / r.fps + 1e-9, "right")
-                pts, okp = px(np.nan_to_num(xy[i0:i1])), np.isfinite(xy[i0:i1, 0])
+                i0, i1 = np.searchsorted(tt, now - n_back / r.fps), np.searchsorted(tt, now + 1e-9, "right")
+                pts = np.r_[xy[i0:i1], [p[:2]]]                   # the trail up to where the object is now
+                okp, th = np.isfinite(pts[:, 0]), np.r_[thin[i0:i1], inferred]
+                pts = px(np.nan_to_num(pts))
                 for i in range(1, len(pts)):
                     if okp[i] and okp[i - 1]:
                         fade = dim * (0.3 + 0.7 * i / len(pts))
                         cv2.line(view, tuple(pts[i - 1]), tuple(pts[i]), tuple(int(c * fade) for c in COLOR[o]),
-                                 1 if thin[i0 + i] else 2, cv2.LINE_AA)
-            cur = t.iloc[k]
-            if not np.isfinite(cur.x):
+                                 1 if th[i] else 2, cv2.LINE_AA)
+            if not np.isfinite(p[0]):
                 continue
-            c = tuple(px([[cur.x, cur.y]])[0])
+            c = tuple(px([p[:2]])[0])
             rad = max(3, int(round(RADIUS[o] * ppm)))
-            inferred = bool(cur.get("filled", False))
-            cv2.circle(right, c, rad, COLOR[o], 2 if np.isnan(cur.score) else -1, cv2.LINE_AA)
+            cv2.circle(right, c, rad, COLOR[o], -1 if detected else 2, cv2.LINE_AA)
             cv2.circle(bottom, c, rad, COLOR[o], 2 if inferred else -1, cv2.LINE_AA)
             if o != "puck":
                 cv2.circle(bottom, c, max(2, rad // 2), tuple(int(v * 0.55) for v in COLOR[o]), -1, cv2.LINE_AA)
-            elif np.hypot(cur.vx, cur.vy) > 0.3:
-                tip = tuple(px([[cur.x + 0.1 * cur.vx, cur.y + 0.1 * cur.vy]])[0])
+            elif np.hypot(p[2], p[3]) > 0.3:
+                tip = tuple(px([p[:2] + 0.1 * p[2:]])[0])
                 cv2.arrowedLine(bottom, c, tip, (255, 255, 255), 1, cv2.LINE_AA, tipLength=0.25)
-            # in the camera view: where the object was when this frame's picture was taken
-            s = shown[k]
-            f0 = int(np.clip(np.floor(s), 0, len(t) - 1))
-            f1, a = min(f0 + 1, len(t) - 1), s - np.floor(s)
-            p = (1 - a) * t.loc[f0, ["x", "y"]].to_numpy(float) + a * t.loc[f1, ["x", "y"]].to_numpy(float)
-            if np.isfinite(p).all():
-                u, v = cam.project(np.c_[apply_h(Ainv, [p]), z[o]])[0] * k_cam + (ox, oy)
-                cv2.circle(left, (int(u), int(v)), 9, COLOR[o], 1 if inferred else 2, cv2.LINE_AA)
-        for e in events[(events.frame <= k) & (events.frame > k - n_show)].itertuples():
+                label(right, f"puck {np.hypot(p[2], p[3]):4.1f} m/s", (10, 44), COLOR["puck"], 0.5)
+            u, v = cam.project(np.c_[apply_h(Ainv, [p[:2]]), z[o]])[0] * k_cam + (ox, oy)
+            cv2.circle(left, (int(u), int(v)), 9, COLOR[o], 1 if inferred else 2, cv2.LINE_AA)
+        for e in events[(events.t <= now) & (events.t > now - 0.5)].itertuples():
             c = tuple(px([[e.x, e.y]])[0])
-            fade = 1 - (k - e.frame) / n_show
+            fade = 1 - (now - e.t) / 0.5
             col = tuple(int(v * (0.4 + 0.6 * fade)) for v in IMPACT[e.kind])
             seen = getattr(e, "seen", True)
             cv2.circle(right, c, int(RADIUS["puck"] * ppm) + 6, col, 2 if seen else 1, cv2.LINE_AA)
             text = f"{e.kind} e={e.restitution:.2f}" if e.kind in ("rail", "end") and np.isfinite(e.restitution) else e.kind
             label(right, text + ("" if seen else " (gap)"), (c[0] + 12, c[1] - 8), col, 0.42)
-        puck = T.get("puck")
-        if puck is not None and k < len(puck) and np.isfinite(puck.vx.iloc[k]):
-            label(right, f"puck {np.hypot(puck.vx.iloc[k], puck.vy.iloc[k]):4.1f} m/s", (10, 44), COLOR["puck"], 0.5)
-        label(left, f"{clip}  {k / r.fps:5.2f} s", (10, 20), scale=0.5)
+        recent = game[game.kind.isin(list(GAME)) & (game.t <= now)]
+        recent = recent[(now - recent.t).to_numpy() < np.array([GAME[kd][1] for kd in recent.kind], float)]
+        if len(recent):                          # the latest game event, across the top of the footage
+            e = recent.iloc[-1]
+            col, _, fmt = GAME[e.kind]
+            text = fmt.format(side=e.side, player=PLAYER.get(e.by, ""), detail=e.detail)
+            (tw, th_), _ = cv2.getTextSize(text, FONT, 0.8, 2)
+            x0 = (cw - tw) // 2
+            cv2.rectangle(left, (x0 - 12, 30), (x0 + tw + 12, 40 + th_ + 10), (20, 20, 20), -1)
+            cv2.rectangle(left, (x0 - 12, 30), (x0 + tw + 12, 40 + th_ + 10), col, 2)
+            cv2.putText(left, text, (x0, 40 + th_), FONT, 0.8, col, 2, cv2.LINE_AA)
+        ph = phase[min(int(round(s)), len(phase) - 1)]
+        label(left, f"{clip}  {now:5.2f} s", (10, 20), scale=0.5)
         label(right, "table (warped footage)", (10, 20))
         label(bottom, "positions", (10, 20))
+        label(bottom, ph, (10 + cv2.getTextSize("positions", FONT, 0.45, 1)[0][0] + 12, 20), PHASE.get(ph, PHASE["unseen"]), 0.5)
         frame = np.zeros((2 * ch, 2 * cw, 3), np.uint8)
-        frame[:ch, :cw], frame[:ch, cw:], frame[ch:, :cw], frame[ch:, cw:] = left, right, bottom, graph.draw(k)
+        frame[:ch, :cw], frame[:ch, cw:], frame[ch:, :cw], frame[ch:, cw:] = left, right, bottom, graph.draw(s)
         cv2.line(frame, (cw, 0), (cw, 2 * ch), (90, 90, 90), 1)
         cv2.line(frame, (0, ch), (2 * cw, ch), (90, 90, 90), 1)
         enc.stdin.write(frame.tobytes())

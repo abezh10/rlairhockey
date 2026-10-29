@@ -1,15 +1,23 @@
 # Per-video settings. Times in seconds of the source video.
 # game_start / game_end: manual overrides (null = let the script estimate).
+# score_roi: x0, y0, x1, y1 (pixels at 1920 x 1080) around both players' points on the broadcast scoreboard
+# (score_changes.py; score_channel: red reads red digits as redness); score_cells: each player's points digit within that box, as fractions of it
+# (check_goals.py).
 # game_start = faceoff release, game_end = final goal; found by eye from contact sheets
 # (scripts/contact_sheet.py), 30 s coarse pass then 2 s / 0.5 s / 0.1 s refinement.
 #   2024:  5:27.8 ->  auto     2023:  1:37.0 -> 41:46.8   2022 final: 0:05.0 -> 12:35.1
 #   2022 WC: 7:51.7 -> 28:40.8   Texas: 7:13.1 -> 37:16.7
 videos:
-  g2xtRuDjb5o: {name: "2024 Worlds finals",        fps: 60, game_start: 327.8, game_end: null}
-  BR5zW8vHGJU: {name: "2023 Worlds finals",        fps: 30, game_start: 97.0,  game_end: 2506.8}
-  ep0KRI2pgRw: {name: "2022 Worlds final match",   fps: 30, game_start: 5.0,   game_end: 755.1}
-  ilGhVvwdVyE: {name: "2022 World Championship",   fps: 30, game_start: 471.7, game_end: 1720.8}
-  A5gYiPuAT6g: {name: "2022 Texas State Championship", fps: 24, game_start: 433.1, game_end: 2236.7}
+  g2xtRuDjb5o: {name: "2024 Worlds finals",        fps: 60, game_start: 327.8, game_end: null, score_roi: [1200, 940, 1280, 1005],
+                score_cells: [[0.42, 0.0, 0.78, 0.45], [0.30, 0.52, 0.64, 1.0]]}
+  BR5zW8vHGJU: {name: "2023 Worlds finals",        fps: 30, game_start: 97.0,  game_end: 2506.8, score_roi: [790, 15, 1120, 90],
+                score_cells: [[0.0, 0.0, 0.16, 1.0], [0.78, 0.0, 0.96, 1.0]], score_channel: red}
+  ep0KRI2pgRw: {name: "2022 Worlds final match",   fps: 30, game_start: 5.0,   game_end: 755.1, score_roi: [1670, 945, 1770, 1050],
+                score_cells: [[0.28, 0.03, 0.52, 0.40], [0.28, 0.47, 0.52, 0.82]]}
+  ilGhVvwdVyE: {name: "2022 World Championship",   fps: 30, game_start: 471.7, game_end: 1720.8, score_roi: [1700, 990, 1800, 1075],
+                score_cells: [[0.50, 0.0, 0.80, 0.47], [0.50, 0.53, 0.80, 1.0]]}
+  A5gYiPuAT6g: {name: "2022 Texas State Championship", fps: 24, game_start: 433.1, game_end: 2236.7, score_roi: [1700, 975, 1800, 1075],
+                score_cells: [[0.48, 0.10, 0.78, 0.50], [0.48, 0.58, 0.78, 0.98]]}
 
 table:
   length_m: 2.4384   # 8 ft

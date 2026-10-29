@@ -47,7 +47,20 @@ impacts:              # where the puck's velocity jumps: a rail, an end wall, a 
   rail_tol: 0.12      # a bounce when the contact is within this of the rail line (calibration error)
   touch_tol: 0.05     # a puck piece is in a mallet's hands (not free flight) when within touching distance plus
   touch_min: 0.1      # this for at least this long (s), away from its ends
+  hidden_penalty: 8   # a bounce among too few detections to split must beat a straight line by this (sigma^2)
 fill:                 # puck gaps longer than smooth.max_gap (an arm in the way, a missed fast puck): track.py, bridge()
   max: 1.0            # s; longer gaps stay empty
   bounce_cost: 0.3    # m/s added for a wall bounce inside the gap (scores are velocity mismatch at the ends, m/s)
   impact_cost: 1.0    # m/s added for an impact inside the gap (a free corner fits almost anything)
+game:                 # goals, pickups, serves, shots and phases from the tracks (game.py)
+  edge: 0.1           # s; a run of the puck this close to the clip's start or end begins or ends with the clip
+  slow_window: 0.3    # s at a run's start or end over which its speed counts
+  slow_speed: 1.0     # m/s; slower there: put down / picked up
+  goal_horizon: 0.3   # s; a goal when the puck's last motion takes it into a mouth within this
+  goal_min_speed: 0.5 # m/s
+  block: true         # no goal if the path into the mouth runs into a mallet...
+  block_overlap: 0.03  # m; ...this far past touching it (tracking error; a puck can also deflect in)
+  mouth_depth: 0.15   # m; last seen this close to the end line inside the mouth is a goal however slow
+  restitution: 0.85   # normal speed kept at a rail when following the puck's path
+  shot_speed: 3.0     # m/s; a strike at least this fast toward the other goal's mouth is a shot
+  shot_horizon: 1.0   # s
