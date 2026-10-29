@@ -25,3 +25,16 @@ smooth:               # constant-velocity Kalman filter + RTS smoother
   max_gap: 0.2        # fill gaps up to this long; longer gaps stay empty
   meas_sigma: {puck: 0.01, mallet: 0.02}
   accel_sigma: {puck: 60, mallet: 25}
+impacts:              # where the puck's velocity jumps: a rail, an end wall, a mallet (track.py, smooth_puck)
+  sigma: 0.02         # detection noise, the unit of fit residual when splitting the path into pieces
+  penalty: 30         # cost of a split, in sigma^2
+  min_len: 4          # detections per piece
+  window: 3.0         # longest piece fitted at once
+  fit: 0.25           # seconds of detections either side that give the velocities in and out
+  min_dv: 0.5         # a smaller velocity change is no impact
+  rel_dv: 0.25        # nor one under this fraction of the speed
+  other_dv: 1.5       # an unexplained change (no mallet or wall nearby) counts from this size
+  puck_r: 0.041
+  mallet_r: 0.05
+  mallet_tol: 0.10    # a strike when a mallet comes within touching distance plus this (+-2 frames)
+  rail_tol: 0.12      # a bounce when the contact is within this of the rail line (calibration error)

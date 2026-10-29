@@ -100,14 +100,24 @@ mallet 0.81 on 22 held-out frames.
 ## Detection and tracking (plan steps 4-5)
 ```bash
 sbatch --array=0-3 scripts/slurm/detect_clips.sbatch --model v2   # every box >= 0.1 -> data/detections/v2/<clip>.parquet
-python scripts/track_clips.py --model v2                          # -> data/tracks/v2/<clip>.parquet + stats.csv
+python scripts/track_clips.py --model v2                          # -> data/tracks/v2/<clip>.parquet, events/<clip>.parquet, stats.csv
 python scripts/render_tracks.py <clip> --model v2                 # top-down picture -> outputs/tracks/v2/<clip>.png
+python scripts/render_video.py <clip> --model v2 --seconds 60     # camera | top-down video -> outputs/videos/v2/<clip>.mp4
 ```
 The tracker (`src/rlairhockey/track.py`, settings in `configs/track.yaml`) keeps one puck and one mallet per
 table half. It drops detections off the playing surface, then parked spares: a puck or mallet that sits
 still for most of a clip while another candidate of its kind is in view. A lone resting puck is never dropped.
 Each target's path is then picked by dynamic programming over detection scores, step lengths and gaps, and
 smoothed with a constant-velocity Kalman/RTS pass. Tracks are in each clip's camera frame for now.
+
+The puck's velocity jumps at impacts, and smoothing straight through one rounds the corner and blends the
+velocities in and out over several frames (about 30% of the puck's speed off within two frames of a bounce). So
+the puck's path is first split where its motion stops being smooth, each split is checked for a cause (a mallet
+within reach, else a rail or end wall the puck moved into and away from, else a large unexplained change), and the
+pieces between impacts are smoothed separately and extrapolated to meet at the impact. Each impact (time, contact
+point, velocities in and out, cause, and for bounces the restitution and the contact's distance past the rail
+line) goes to `data/tracks/<model>/events/<clip>.parquet`, and the track's `event` column marks the first frame
+after it.
 
 ## Training on Colab
 `notebooks/colab_detector.ipynb` trains the detector, evaluates it, and detects, tracks and renders clips. Training
@@ -122,7 +132,8 @@ rclone config create gdrive drive scope=drive                        # open the 
 Then:
 ```bash
 scripts/sync_drive.sh push          # clips (~4.6 GB) and calibration frames -> Drive
-scripts/sync_drive.sh pull <model>  # a model trained on Colab -> models/detector/<model>
+scripts/sync_drive.sh pull <model>  # a model trained on Colab, with any detections, tracks and renders made there
+scripts/sync_drive.sh push-results <model>  # detections, tracks and renders made here -> Drive
 ```
 In Colab: open the notebook from GitHub (File → Open notebook → GitHub → `abezh10/rlairhockey`), pick a GPU runtime,
 add the secrets `ROBOFLOW_API_KEY` and `ROBOFLOW_WORKSPACE`, and run all cells.

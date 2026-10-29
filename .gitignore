@@ -22,3 +22,6 @@ __pycache__/
 *.egg-info/
 .ipynb_checkpoints/
 .env
+
+# editor swap files (one of .env would hold the keys)
+*.swp

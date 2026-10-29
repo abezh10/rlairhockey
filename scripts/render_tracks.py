@@ -2,6 +2,8 @@
 
 Smoothed paths are lines (puck shaded from dark at the clip start to bright at its end; mallets in their
 own colors); detections the tracker used are dots, and detections it rejected are small gray crosses.
+Puck impacts are rings: green for a rail or end-wall bounce, the mallet's color for a strike, magenta
+for an unexplained velocity jump.
 Writes outputs/tracks/<model>/<clip>.png.
 Usage: python scripts/render_tracks.py <clip> [<clip> ...] [--model v2]
 """
@@ -59,6 +61,12 @@ def main() -> None:
                     cv2.line(img, tuple(p[i - 1]), tuple(p[i]), col, 2, cv2.LINE_AA)
             for u, v in px(t[["x_det", "y_det"]].dropna().to_numpy()):
                 cv2.circle(img, (int(u), int(v)), 2, (255, 255, 255) if obj == "puck" else COLORS[obj], -1)
+        ev_path = ROOT / "data/tracks" / a.model / "events" / f"{c}.parquet"
+        if ev_path.exists():
+            for e in pd.read_parquet(ev_path).itertuples():
+                u, v = px([[e.x, e.y]])[0]
+                col = {"rail": (80, 255, 80), "end": (80, 255, 80), "other": (255, 0, 255)}.get(e.kind) or COLORS[e.kind]
+                cv2.circle(img, (int(u), int(v)), 9, col, 2, cv2.LINE_AA)
         cv2.putText(img, f"{c}  ({len(tr.frame.unique())} frames, {r.fps:.0f} fps)", (10, 28),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
         cv2.imwrite(str(out / f"{c}.png"), img)

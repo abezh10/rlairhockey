@@ -1,9 +1,12 @@
 """Track the puck and both mallets in every detected clip (src/rlairhockey/track.py).
 
 Reads data/detections/<model>/<clip>.parquet and the clip's camera calibration (data/calib/fits.json);
-writes data/tracks/<model>/<clip>.parquet (frame, obj, x, y, vx, vy, x_det, y_det, score; table meters,
-in the clip camera's frame) and data/tracks/<model>/stats.csv (per clip: boxes dropped as off the
-surface or parked, and the fraction of frames each object was detected on / covered after smoothing).
+writes data/tracks/<model>/<clip>.parquet (frame, obj, x, y, vx, vy, x_det, y_det, score, event; table
+meters, in the clip camera's frame; event names the puck impact, if any, that the frame is the first one
+after), data/tracks/<model>/events/<clip>.parquet (the puck's impacts: time, place, velocities in and out,
+cause; track.py, smooth_puck) and data/tracks/<model>/stats.csv (per clip: boxes dropped as off the
+surface or parked, the fraction of frames each object was detected on / covered after smoothing, and
+impacts by cause).
 Clips from framings without a calibration are listed and skipped.
 Usage: python scripts/track_clips.py [--model v2] [--clips <clip> ...]
 """
@@ -24,6 +27,7 @@ def run(job: tuple) -> dict:
     clip, n, fps, cam, src, dst = job
     res = track_clip(pd.read_parquet(src), n, fps, Camera.from_dict(cam), Table.load(), load_config())
     res.tracks.to_parquet(dst, index=False)
+    res.events.to_parquet(dst.parent / "events" / dst.name, index=False)
     return dict(clip=clip, frames=n, **res.stats)
 
 
@@ -39,7 +43,7 @@ def main() -> None:
         clips = clips[clips["clip"].isin(a.clips)]
     fits = json.load(open(ROOT / "data/calib/fits.json"))
     src, dst = ROOT / "data/detections" / a.model, ROOT / "data/tracks" / a.model
-    dst.mkdir(parents=True, exist_ok=True)
+    (dst / "events").mkdir(parents=True, exist_ok=True)
     jobs, skipped = [], []
     for c, n, fps, g in zip(clips["clip"], clips.frames, clips.fps, clips.group):
         if not (src / f"{c}.parquet").exists():
