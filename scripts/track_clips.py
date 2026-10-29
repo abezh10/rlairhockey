@@ -7,6 +7,8 @@ after), data/tracks/<model>/events/<clip>.parquet (the puck's impacts: time, pla
 cause; track.py, smooth_puck) and data/tracks/<model>/stats.csv (per clip: boxes dropped as off the
 surface or parked, the fraction of frames each object was detected on / covered after smoothing, and
 impacts by cause).
+Repeated frames (data/clips/changes/, find_repeats.py) and wall corrections (data/calib/walls.json,
+fit_walls.py) are used when present.
 Clips from framings without a calibration are listed and skipped.
 Usage: python scripts/track_clips.py [--model v2] [--clips <clip> ...]
 """
@@ -15,6 +17,7 @@ import json
 from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
 from rlairhockey.geometry import Camera, Table
@@ -24,8 +27,10 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def run(job: tuple) -> dict:
-    clip, n, fps, cam, src, dst = job
-    res = track_clip(pd.read_parquet(src), n, fps, Camera.from_dict(cam), Table.load(), load_config())
+    clip, n, fps, cam, walls, src, dst = job
+    ch = ROOT / "data/clips/changes" / f"{clip}.npy"
+    res = track_clip(pd.read_parquet(src), n, fps, Camera.from_dict(cam), Table.load(), load_config(),
+                     np.load(ch) if ch.exists() else None, None if walls is None else np.array(walls))
     res.tracks.to_parquet(dst, index=False)
     res.events.to_parquet(dst.parent / "events" / dst.name, index=False)
     return dict(clip=clip, frames=n, **res.stats)
@@ -42,6 +47,8 @@ def main() -> None:
     if a.clips:
         clips = clips[clips["clip"].isin(a.clips)]
     fits = json.load(open(ROOT / "data/calib/fits.json"))
+    wp = ROOT / "data/calib/walls.json"
+    walls = json.load(open(wp)) if wp.exists() else {}
     src, dst = ROOT / "data/detections" / a.model, ROOT / "data/tracks" / a.model
     (dst / "events").mkdir(parents=True, exist_ok=True)
     jobs, skipped = [], []
@@ -51,7 +58,7 @@ def main() -> None:
         if g not in fits:
             skipped.append(c)
             continue
-        jobs.append((c, n, fps, fits[g]["camera"], src / f"{c}.parquet", dst / f"{c}.parquet"))
+        jobs.append((c, n, fps, fits[g]["camera"], walls.get(g, {}).get("A"), src / f"{c}.parquet", dst / f"{c}.parquet"))
     print(f"{len(jobs)} clips to track; {len(skipped)} detected clips have no calibration: {skipped}")
     with ProcessPoolExecutor(a.jobs) as ex:
         stats = pd.DataFrame(list(ex.map(run, jobs)))

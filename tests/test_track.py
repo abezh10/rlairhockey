@@ -82,6 +82,8 @@ def test_straight_noisy_puck_has_no_impacts():
     p = np.c_[-1 + 0.4 * t, 0.3 - 0.1 * t] + np.random.default_rng(3).normal(0, 0.015, (150, 2))
     s, ev, _ = smooth_puck(np.arange(150), p, 150, FPS, {}, table, cfg)
     assert len(ev) == 0 and np.isfinite(s[:, 0]).all()
+    speed = np.hypot(s[:, 2], s[:, 3])                # free flight: steady, despite 1.5 cm detection noise
+    assert np.abs(speed - np.hypot(0.4, 0.1)).max() < 0.08
 
 
 def test_gap_over_a_bounce_is_bridged_through_the_rail():
@@ -111,3 +113,44 @@ def test_gap_in_straight_motion_is_bridged_straight():
     s, ev, filled = smooth_puck(np.flatnonzero(seen), p[seen], 60, FPS, {}, table, cfg)
     assert len(ev) == 0 and filled[~seen].all()
     assert np.allclose(s[:, :2], p, atol=0.01)
+
+
+def test_pulldown_pictures_are_retimed_evenly():
+    from rlairhockey.track import retime
+    cfg = load_config()
+    shows = np.tile([2, 2, 2, 4], 30)                 # a 24 fps source at 60 fps: 4 pictures per 10 frames
+    changes = np.concatenate([[5000] + [0] * (k - 1) for k in shows])
+    t = retime(changes, cfg)
+    assert np.isnan(t[changes == 0]).all()
+    new = t[np.isfinite(t)]
+    assert np.allclose(np.diff(new), 2.5, atol=0.1)
+
+
+def test_doubled_then_dropped_frame_is_moved_back():
+    from rlairhockey.track import retime
+    cfg = load_config()
+    picture = np.r_[0:20, 19, 20, 22:40]              # frame 20 repeats picture 19; picture 21 is dropped
+    xy = np.c_[0.1 * picture, np.zeros(len(picture))] - 1.5   # the puck moves 10 cm per picture
+    changes = np.r_[-1, np.where(np.diff(picture) == 0, 0, 5000)]
+    t = retime(changes, cfg, xy)
+    assert np.isnan(t[20]) and t[21] == 20 and t[22] == 22
+    assert np.array_equal(np.delete(t, [20, 21]), np.delete(np.arange(len(t), dtype=float), [20, 21]))
+
+
+def test_constrain_keeps_puck_on_the_table_and_off_the_mallets():
+    from rlairhockey.geometry import Table
+    from rlairhockey.track import constrain
+    cfg, table = load_config(), Table.load()
+    ic = cfg["impacts"]
+    W = table.width / 2
+    tracks = {"puck": np.array([[0.3, W + 0.02, 0, 0], [0.5, 0.0, 0, 0]]),
+              "mallet_l": np.full((2, 4), np.nan),
+              "mallet_r": np.array([[0.9, 0.0, 0, 0], [0.56, 0.0, 0, 0]])}   # frame 1: 6 cm apart, overlapping
+    before = {o: t.copy() for o, t in tracks.items()}
+    ev = pd.DataFrame(dict(kind=["rail"], x=[0.3], y=[W + 0.01]))
+    moved = constrain(tracks, ev, table, cfg)
+    assert tracks["puck"][0, 1] == W - ic["puck_r"] and ev.y[0] == W - ic["puck_r"]
+    gap = np.hypot(*(tracks["puck"][1, :2] - tracks["mallet_r"][1, :2]))
+    assert abs(gap - (ic["puck_r"] + ic["mallet_r"])) < 1e-6
+    assert abs(tracks["mallet_r"][1, 0] - before["mallet_r"][1, 0]) > abs(tracks["puck"][1, 0] - before["puck"][1, 0])
+    assert moved == {"off_wall": 1, "apart": 1}

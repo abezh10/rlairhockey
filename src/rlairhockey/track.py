@@ -1,8 +1,14 @@
 """Per-frame detections -> one puck track and one mallet track per table half, in table coordinates.
 
 For each clip:
+  0. Drop detections on repeated frames (find_repeats.py): a frame shown twice is no new look at the table,
+     and keeping it makes the puck stop for a frame and then jump. In a clip made from a lower frame rate
+     by showing frames two or three times (pulldown), each picture is also given the time it was really
+     taken (retime()).
   1. Project each box center onto the table: its viewing ray meets the plane at that class's box-center
-     height (configs/track.yaml), so tall mallets don't land too far from the camera.
+     height (configs/track.yaml), so tall mallets don't land too far from the camera. Then apply the
+     framing's wall correction (fit_walls.py), which moves the calibration's rails to where the puck
+     actually bounces.
   2. Drop detections off the playing surface (the goal mouths count as on).
   3. Drop parked objects: a spare puck or mallet that sits still for most of the clip while another
      candidate of its kind is in view. One that is the only candidate is never dropped, so a puck
@@ -19,7 +25,10 @@ For each clip:
      and the pieces between impacts are smoothed separately and extrapolated to meet at the impact.
      Gaps too long for the smoother (an arm over the puck, a fast puck missed for a few frames) are
      bridged up to fill.max seconds by the likeliest straight-line path: no corner, one wall bounce, or
-     one impact (bridge()). Those frames are flagged `filled`.
+     one impact (bridge()). Those frames are flagged `filled`. A piece no mallet comes near is free flight
+     on an air cushion, nearly straight and steady, so it gets a much smaller allowance for acceleration.
+  6. Keep every frame physically possible (constrain()): centers at least a radius inside the rails, and
+     the puck and a mallet never overlapping.
 
 Mallets can't cross the center line, so each half is its own single-target problem: mallet_l on x < 0,
 mallet_r on x > 0. Coordinates are in the clip's camera frame (geometry.py: "left" = -x as that camera
@@ -34,7 +43,7 @@ import numpy as np
 import pandas as pd
 import yaml
 
-from .geometry import ROOT, Camera, Table
+from .geometry import ROOT, Camera, Table, apply_h
 
 OBJECTS = ("puck", "mallet_l", "mallet_r")
 
@@ -43,8 +52,9 @@ def load_config(path: str | Path = ROOT / "configs/track.yaml") -> dict:
     return yaml.safe_load(open(path))
 
 
-def to_table(det: pd.DataFrame, cam: Camera, cfg: dict) -> pd.DataFrame:
-    """Add table x, y for each box center, intersecting its ray with the plane at the class's height."""
+def to_table(det: pd.DataFrame, cam: Camera, cfg: dict, walls: np.ndarray | None = None) -> pd.DataFrame:
+    """Add table x, y for each box center, intersecting its ray with the plane at the class's height, then
+    applying the framing's wall correction (a homography on the table plane; fit_walls.py), if any."""
     det = det.copy()
     uv = np.c_[(det.x0 + det.x1) / 2, (det.y0 + det.y1) / 2]
     xy = np.full((len(det), 2), np.nan)
@@ -52,6 +62,8 @@ def to_table(det: pd.DataFrame, cam: Camera, cfg: dict) -> pd.DataFrame:
         m = (det.cls == cls).to_numpy()
         if m.any():
             xy[m] = cam.to_table(uv[m], z=cfg[cls]["z"])[:, :2]
+    if walls is not None:
+        xy = apply_h(walls, xy)
     det["x"], det["y"] = xy[:, 0], xy[:, 1]
     return det
 
@@ -143,10 +155,64 @@ def best_path(det: pd.DataFrame, n_frames: int, fps: float, vmax: float, cfg: di
     return np.array(path[::-1], int)
 
 
+def retime(changes: np.ndarray, cfg: dict, xy: np.ndarray | None = None) -> np.ndarray:
+    """When each frame's picture was taken, in frames, from how much each frame changed (find_repeats.py);
+    NaN for a repeat. Two kinds of clip show repeats:
+    - Pulldown (most frames repeated): a lower-rate source's pictures shown two or more times each (the 2024
+      final is 24 fps shown at 60, with no fixed pattern). A picture's first frame is up to a frame or two
+      late, but the pictures are evenly spaced in time, so each one's time comes from a straight-line fit
+      of first frame against picture number around it.
+    - Dropped and doubled frames (a few repeated; the 2023 final): after a repeat, pictures run a frame late
+      until one is skipped, where everything moves two steps at once. With xy (the puck's position per
+      frame, NaN where not seen) the skip is found where the puck, moving steadily, takes a double step
+      within repeats.catch_up frames, and the pictures between are moved back a frame. Otherwise (the
+      puck too slow to tell) a picture stays at its frame."""
+    c = cfg["repeats"]
+    rep = (changes >= 0) & (changes <= c["px"])
+    t = np.where(rep, np.nan, np.arange(len(changes), dtype=float))
+    new = np.flatnonzero(~rep)
+    w = c["window"]
+    if rep.mean() >= c["pulldown"]:
+        if len(new) > 2 * w:
+            k = np.arange(len(new))
+            for i in k:
+                lo, hi = max(0, min(i - w, len(new) - 2 * w - 1)), max(2 * w + 1, min(i + w + 1, len(new)))
+                b, a = np.polyfit(k[lo:hi], new[lo:hi], 1)
+                t[new[i]] = a + b * i
+        return t
+    if xy is None or len(new) < 8:
+        return t
+    step = np.hypot(*np.diff(xy[new], axis=0).T)          # step[j]: new[j] -> new[j + 1]
+    gap = np.diff(new)
+    steady = lambda r: 0.6 <= r <= 1.4
+    for j in np.flatnonzero(gap == 2):                    # one repeat between new[j] and new[j + 1]
+        d = np.median(step[max(0, j - 3):j]) if j >= 3 else np.nan
+        if not d > c["min_step"] or not steady(step[j] / d):
+            continue                                      # too slow to tell, or not a stall
+        for k in range(j + 1, len(step) - 1):
+            if gap[k] != 1 or new[k] - new[j] > c["catch_up"] or not np.isfinite(step[k]):
+                break
+            if 1.6 <= step[k] / d <= 2.5 and steady(step[k + 1] / d):
+                t[new[j + 1]:new[k] + 1] -= 1             # those pictures were a frame late
+                break
+            if not steady(step[k] / d):
+                break
+    return t
+
+
+def picture_times(det: pd.DataFrame, changes: np.ndarray, n_frames: int, cfg: dict) -> np.ndarray:
+    """retime() for a clip, given its detections in table coordinates (the puck's steps find dropped pictures)."""
+    pk = det[(det.cls == "puck") & (det.frame < n_frames)].sort_values("score").groupby("frame").tail(1)
+    xy = np.full((n_frames, 2), np.nan)
+    xy[pk.frame] = pk[["x", "y"]].to_numpy()
+    return retime(np.r_[changes, np.full(max(0, n_frames - len(changes)), 10 ** 6)][:n_frames], cfg, xy)
+
+
 def smooth(frames: np.ndarray, xy: np.ndarray, n_frames: int, fps: float, meas_sigma: float,
-           accel_sigma: float, max_gap: float) -> np.ndarray:
+           accel_sigma: float, max_gap: float, offsets: np.ndarray | None = None) -> np.ndarray:
     """Constant-velocity Kalman filter + RTS smoother over all frames from the first to the last
-    measurement. Returns (n_frames, 4) x, y, vx, vy; NaN outside, and inside gaps longer than max_gap."""
+    measurement. offsets: when each measurement was taken relative to its frame, in s (retime()). Returns
+    (n_frames, 4) x, y, vx, vy; NaN outside, and inside gaps longer than max_gap."""
     out = np.full((n_frames, 4), np.nan)
     if len(frames) == 0:
         return out
@@ -159,6 +225,9 @@ def smooth(frames: np.ndarray, xy: np.ndarray, n_frames: int, fps: float, meas_s
     R = np.eye(2) * meas_sigma ** 2
     z = np.full((n_frames, 2), np.nan)
     z[frames] = xy
+    off = np.zeros(n_frames)
+    if offsets is not None:
+        off[frames] = offsets
     t0, t1 = frames.min(), frames.max()
     n = t1 - t0 + 1
     xs, Ps, xp, Pp = np.zeros((n, 4)), np.zeros((n, 4, 4)), np.zeros((n, 4)), np.zeros((n, 4, 4))
@@ -169,6 +238,7 @@ def smooth(frames: np.ndarray, xy: np.ndarray, n_frames: int, fps: float, meas_s
             x, P = F @ x, F @ P @ F.T + Q
         xp[i], Pp[i] = x, P
         if not np.isnan(z[t0 + i, 0]):
+            H[0, 2] = H[1, 3] = off[t0 + i]           # the position at the measurement's own time
             S = H @ P @ H.T + R
             Kg = P @ H.T @ np.linalg.inv(S)
             x = x + Kg @ (z[t0 + i] - H @ x)
@@ -186,25 +256,26 @@ def smooth(frames: np.ndarray, xy: np.ndarray, n_frames: int, fps: float, meas_s
     return out
 
 
-def _suffix_sse(t: np.ndarray, xy: np.ndarray) -> np.ndarray:
-    """Residual sum of squares of a quadratic fit of xy(t) over every suffix t[i:] (inf under 3 points)."""
-    s = t - t[-1]
-    pw = np.stack([s ** k for k in range(5)], 1)
+def _suffix_sse(t: np.ndarray, xy: np.ndarray, deg: int = 1) -> np.ndarray:
+    """Residual sum of squares of a polynomial fit of xy(t) over every suffix t[i:] (inf under deg + 1 points)."""
+    s, d = t - t[-1], deg + 1
+    pw = np.stack([s ** k for k in range(2 * d - 1)], 1)
     P = pw[::-1].cumsum(0)[::-1]                                  # sums of s^k over each suffix
-    B = (pw[:, :3, None] * xy[:, None, :])[::-1].cumsum(0)[::-1]  # sums of s^k * (x, y)
+    B = (pw[:, :d, None] * xy[:, None, :])[::-1].cumsum(0)[::-1]  # sums of s^k * (x, y)
     Q = (xy ** 2).sum(1)[::-1].cumsum()[::-1]
     sse = np.full(len(t), np.inf)
-    ok = np.arange(len(t)) <= len(t) - 3
+    ok = np.arange(len(t)) <= len(t) - d
     if ok.any():
-        M = np.stack([P[ok, k:k + 3] for k in range(3)], 1)       # normal matrices
+        M = np.stack([P[ok, k:k + d] for k in range(d)], 1)       # normal matrices
         c = np.linalg.solve(M, B[ok])
         sse[ok] = np.maximum(Q[ok] - (c * B[ok]).sum((1, 2)), 0)
     return sse
 
 
 def pieces(t: np.ndarray, xy: np.ndarray, cfg: dict) -> list[tuple[int, int]]:
-    """Split detections into pieces of smooth motion, as [start, end) index pairs: the partition that
-    minimizes each piece's quadratic-fit residual (in units of the detection noise) plus a cost per piece.
+    """Split detections into pieces of steady motion, as [start, end) index pairs: the partition that
+    minimizes each piece's straight-line residual (in units of the detection noise) plus a cost per piece.
+    (A puck between impacts slides straight at a nearly constant speed.)
     Pieces are at least min_len detections and at most window seconds (longer motion gets split and the
     caller rejoins it, finding no impact there)."""
     m, n = cfg["min_len"], len(t)
@@ -242,11 +313,11 @@ def impact(t: np.ndarray, xy: np.ndarray, a: tuple, b: tuple, mallets: dict, fps
     within reach then makes it a strike; otherwise a rail or end wall the puck was moving into and is
     moving away from makes it a bounce; an unexplained change only counts when it's large.
     None when the velocity barely changed."""
-    w = max(int(round(cfg["fit"] * fps)), cfg["min_len"])
-    best = None
+    m, best = cfg["min_len"], None
     for k in range(max(a[0] + 3, b[0] - 2), min(b[1] - 3, b[0] + 2) + 1):
-        (la, ra), (lb, rb) = (_line(t[i] - t[k], xy[i]) for i in (np.arange(max(a[0], k - w), k),
-                                                                   np.arange(k, min(b[1], k + w))))
+        lo = max(a[0], min(int(np.searchsorted(t, t[k] - cfg["fit"])), k - m))     # fit seconds either side,
+        hi = min(b[1], max(int(np.searchsorted(t, t[k] + cfg["fit"])), k + m))     # at least min_len detections
+        (la, ra), (lb, rb) = (_line(t[i] - t[k], xy[i]) for i in (np.arange(lo, k), np.arange(k, hi)))
         if best is None or ra + rb < best[0]:
             best = (ra + rb, k, la, lb)
     if best is None:
@@ -339,18 +410,29 @@ def bridge(pa: np.ndarray, va: np.ndarray, pb: np.ndarray, vb: np.ndarray, T: fl
 
 
 def smooth_puck(frames: np.ndarray, xy: np.ndarray, n_frames: int, fps: float, mallets: dict, table: Table,
-                cfg: dict) -> tuple[np.ndarray, pd.DataFrame, np.ndarray]:
+                cfg: dict, offsets: np.ndarray | None = None) -> tuple[np.ndarray, pd.DataFrame, np.ndarray]:
     """smooth() for the puck, with its velocity free to jump at impacts (see impact()), and gaps up to
     fill.max seconds bridged (see bridge()). Returns the (n_frames, 4) track; the impacts (t, frame = first
     frame after it, kind, contact x, y, velocities in and out, for bounces the contact's distance past the
     rail line and the normal restitution, and seen = False for one inferred inside a gap); and a mask of
-    the frames filled in by a bridge."""
+    the frames filled in by a bridge. offsets: as for smooth()."""
     sm, ic = cfg["smooth"], cfg["impacts"]
-    args = (sm["meas_sigma"]["puck"], sm["accel_sigma"]["puck"], sm["max_gap"])
+    reach = ic["puck_r"] + ic["mallet_r"] + ic["mallet_tol"]
+    edge = 0.1 * fps
+
+    def free(a: int, b: int) -> bool:             # no mallet touching it for long, away from its ends (impacts)
+        f, p = frames[a:b], xy[a:b]
+        inner = (f > f[0] + edge) & (f < f[-1] - edge)
+        touch = np.zeros(inner.sum(), bool)
+        for m in mallets.values():
+            touch |= np.hypot(*(m[f[inner], :2] - p[inner]).T) <= ic["puck_r"] + ic["mallet_r"] + ic["touch_tol"]
+        return touch.sum() * (f[-1] - f[0]) / fps / max(len(f) - 1, 1) < ic["touch_min"]
+
     out = np.full((n_frames, 4), np.nan)
     filled = np.zeros(n_frames, bool)
     events = []
-    t = frames / fps
+    offsets = np.zeros(len(frames)) if offsets is None else offsets
+    t = frames / fps + offsets
     ends = []                                     # (first, last) frame of each run
     for run in np.split(np.arange(len(frames)), np.flatnonzero(np.diff(frames) - 1 > sm["max_gap"] * fps) + 1):
         if not len(run):
@@ -368,16 +450,18 @@ def smooth_puck(frames: np.ndarray, xy: np.ndarray, n_frames: int, fps: float, m
                 joined.append((k, p[1]))
                 cuts.append(ev)
         for i, (a, b) in enumerate(joined):
-            s = smooth(frames[a:b], xy[a:b], n_frames, fps, *args)
+            acc = sm["accel_sigma"]["puck_free" if free(a, b) else "puck"]
+            s = smooth(frames[a:b], xy[a:b], n_frames, fps, sm["meas_sigma"]["puck"], acc, sm["max_gap"], offsets[a:b])
             out[frames[a]:frames[b - 1] + 1] = s[frames[a]:frames[b - 1] + 1]
-            if i:                                 # fill up to the impact from both sides
+            if i:                                 # between the pieces: straight to the impact and on from it
                 ev, fa, fb = cuts[i - 1], frames[joined[i - 1][1] - 1], frames[a]
+                tc, c = np.clip(ev["t"], fa / fps, fb / fps), np.array([ev["x"], ev["y"]])
                 for f in range(fa + 1, fb):
-                    src = fa if f / fps < ev["t"] else fb
-                    out[f, :2] = out[src, :2] + out[src, 2:] * (f - src) / fps
-                    out[f, 2:] = out[src, 2:]
+                    (t0, p0), (t1, p1) = ((fa / fps, out[fa, :2]), (tc, c)) if f / fps < tc else \
+                        ((tc, c), (fb / fps, out[fb, :2]))
+                    v = (p1 - p0) / max(t1 - t0, 1e-9)
+                    out[f] = np.r_[p0 + v * (f / fps - t0), v]
         events += [dict(e, seen=True) for e in cuts]
-    reach = ic["puck_r"] + ic["mallet_r"] + ic["mallet_tol"]
     for (_, fa), (fb, _) in zip(ends[:-1], ends[1:]):
         if (fb - fa - 1) / fps > cfg["fill"]["max"]:
             continue
@@ -405,6 +489,54 @@ def smooth_puck(frames: np.ndarray, xy: np.ndarray, n_frames: int, fps: float, m
     return out, ev, filled
 
 
+def constrain(tracks: dict[str, np.ndarray], events: pd.DataFrame, table: Table, cfg: dict) -> dict:
+    """Make every frame physically possible, a last small correction for calibration and detection error:
+    each object's center at least its radius inside the rails (the puck may go on into a goal mouth), and
+    the puck never overlapping a mallet (the two are pushed apart along the line between them, each by a
+    share of the overlap in proportion to its measurement variance, so the less certain mallet moves more).
+    Bounces are put on their wall. Edits tracks (obj -> (n_frames, 4)) and events in place; returns how
+    many frames each rule moved something in."""
+    ic = cfg["impacts"]
+    L, W, g = table.length / 2, table.width / 2, (table.goal_width or 0) / 2
+    rad = {"puck": ic["puck_r"], "mallet_l": ic["mallet_r"], "mallet_r": ic["mallet_r"]}
+    var = {o: cfg["smooth"]["meas_sigma"]["puck" if o == "puck" else "mallet"] ** 2 for o in rad}
+    n = len(tracks["puck"])
+    moved = dict(off_wall=np.zeros(n, bool), apart=np.zeros(n, bool))
+
+    def inside(o: str, p: np.ndarray) -> np.ndarray:     # p clamped to where o's center can be
+        y = np.clip(p[:, 1], -(W - rad[o]), W - rad[o])
+        lx = np.where((o == "puck") & (np.abs(y) < g), L + cfg["puck"]["goal_depth"], L - rad[o])
+        return np.c_[np.clip(p[:, 0], -lx, lx), y]
+
+    def clamp() -> None:
+        for o, p in tracks.items():
+            q = inside(o, p[:, :2])
+            moved["off_wall"] |= np.any(np.abs(q - p[:, :2]) > 1e-9, axis=1)
+            p[:, :2] = q
+
+    P = tracks["puck"]
+    for _ in range(3):                            # a puck pinned to a rail by a mallet takes a few rounds
+        clamp()
+        for o in ("mallet_l", "mallet_r"):
+            M = tracks[o]
+            d = P[:, :2] - M[:, :2]
+            dist = np.hypot(*d.T)
+            over = np.nan_to_num(rad["puck"] + rad[o] - dist, nan=0.0)
+            m = over > 1e-6
+            u = d[m] / np.maximum(dist[m], 1e-9)[:, None]
+            share = var["puck"] / (var["puck"] + var[o])
+            P[m, :2] += (share * over[m])[:, None] * u
+            M[m, :2] -= ((1 - share) * over[m])[:, None] * u
+            moved["apart"] |= m
+    clamp()
+    if len(events):
+        events[["x", "y"]] = inside("puck", events[["x", "y"]].to_numpy(float))
+        for kind, c, half in (("rail", "y", W), ("end", "x", L)):
+            m = events.kind == kind
+            events.loc[m, c] = np.sign(events.loc[m, c]) * (half - ic["puck_r"])
+    return {k: int(v.sum()) for k, v in moved.items()}
+
+
 @dataclass
 class ClipTracks:
     tracks: pd.DataFrame          # frame, obj, x, y, vx, vy, x_det, y_det, score (NaN when not detected), event, filled
@@ -413,42 +545,57 @@ class ClipTracks:
 
 
 def track_clip(det: pd.DataFrame, n_frames: int, fps: float, cam: Camera, table: Table,
-               cfg: dict | None = None) -> ClipTracks:
+               cfg: dict | None = None, changes: np.ndarray | None = None,
+               walls: np.ndarray | None = None) -> ClipTracks:
+    """changes: per frame, the pixels changed since the frame before (find_repeats.py), to drop repeats and
+    retime pulldown. walls: the framing's wall correction (fit_walls.py)."""
     cfg = cfg or load_config()
-    det = det[det.score >= cfg["min_score"]]
-    det = to_table(det, cam, cfg)
+    det = to_table(det[det.score >= cfg["min_score"]], cam, cfg, walls).assign(dt=0.0)
+    stats = {}
+    if changes is not None:
+        when = picture_times(det, changes, n_frames, cfg)
+        tf = when[det.frame.clip(0, n_frames - 1)]
+        det, tf = det[np.isfinite(tf)], tf[np.isfinite(tf)]
+        det = det.assign(frame=np.clip(np.round(tf), 0, n_frames - 1).astype(int))
+        det = det.assign(dt=(tf - det.frame.to_numpy()) / fps)
+        stats["repeats"] = int(np.isnan(when).sum())
+        stats["retimed"] = int((np.abs(when - np.arange(n_frames)) > 0.5).sum())
     surf = on_surface(det, table, cfg)
-    stats = dict(boxes=len(det), off_surface=int((~surf).sum()))
+    stats |= dict(boxes=len(det), off_surface=int((~surf).sum()))
     det = det[surf]
     half = cfg["mallet"]["center_overlap"]
     targets = {"puck": det[det.cls == "puck"],
                "mallet_l": det[(det.cls == "mallet") & (det.x < half)],
                "mallet_r": det[(det.cls == "mallet") & (det.x > -half)]}
-    rows, smoothed = {}, {}
+    paths, smoothed = {}, {}
+    filled = np.zeros(n_frames, bool)
     for obj in ("mallet_l", "mallet_r", "puck"):  # mallets first: the puck's impacts look for them
         d = targets[obj].reset_index(drop=True)
         pk = parked(d, n_frames, cfg)
         stats[f"{obj}_parked"] = int(pk.sum())
         d = d[~pk].reset_index(drop=True)
         cls = "puck" if obj == "puck" else "mallet"
-        path = d.iloc[best_path(d, n_frames, fps, cfg[cls]["vmax"], cfg)] if len(d) else d
-        fr, xy = path.frame.to_numpy(), path[["x", "y"]].to_numpy()
-        event = np.full(n_frames, "", object)
-        filled = np.zeros(n_frames, bool)
+        paths[obj] = path = d.iloc[best_path(d, n_frames, fps, cfg[cls]["vmax"], cfg)] if len(d) else d
+        fr, xy, dt = path.frame.to_numpy(), path[["x", "y"]].to_numpy(), path.dt.to_numpy()
         if obj == "puck":
-            s, events, filled = smooth_puck(fr, xy, n_frames, fps, smoothed, table, cfg)
-            event[events.frame.clip(0, n_frames - 1)] = events.kind
+            smoothed[obj], events, filled = smooth_puck(fr, xy, n_frames, fps, smoothed, table, cfg, dt)
             for k, v in events.kind.value_counts().items():
                 stats[f"puck_{k}"] = int(v)
         else:
-            s = smooth(fr, xy, n_frames, fps, cfg["smooth"]["meas_sigma"][cls], cfg["smooth"]["accel_sigma"][cls],
-                       cfg["smooth"]["max_gap"])
-            smoothed[obj] = s
+            sm = cfg["smooth"]
+            smoothed[obj] = smooth(fr, xy, n_frames, fps, sm["meas_sigma"][cls], sm["accel_sigma"][cls], sm["max_gap"], dt)
+    stats |= {f"constrained_{k}": v for k, v in constrain(smoothed, events, table, cfg).items()}
+    rows = []
+    for obj in OBJECTS:
+        s, path = smoothed[obj], paths[obj]
+        event = np.full(n_frames, "", object)
+        if obj == "puck":
+            event[events.frame.clip(0, n_frames - 1)] = events.kind
         raw = np.full((n_frames, 3), np.nan)
-        raw[fr] = path[["x", "y", "score"]].to_numpy()
-        rows[obj] = pd.DataFrame(dict(frame=np.arange(n_frames, dtype=np.int32), obj=obj,
-                                      x=s[:, 0], y=s[:, 1], vx=s[:, 2], vy=s[:, 3],
-                                      x_det=raw[:, 0], y_det=raw[:, 1], score=raw[:, 2], event=event, filled=filled))
+        raw[path.frame.to_numpy()] = path[["x", "y", "score"]].to_numpy()
+        rows.append(pd.DataFrame(dict(frame=np.arange(n_frames, dtype=np.int32), obj=obj,
+                                      x=s[:, 0], y=s[:, 1], vx=s[:, 2], vy=s[:, 3], x_det=raw[:, 0], y_det=raw[:, 1],
+                                      score=raw[:, 2], event=event, filled=filled if obj == "puck" else False)))
         stats[f"{obj}_detected"] = round(len(path) / n_frames, 3)
         stats[f"{obj}_covered"] = round(float(np.isfinite(s[:, 0]).mean()), 3)
-    return ClipTracks(pd.concat([rows[o] for o in OBJECTS], ignore_index=True), events, stats)
+    return ClipTracks(pd.concat(rows, ignore_index=True), events, stats)

@@ -71,6 +71,35 @@ def topdown(img: np.ndarray, H: np.ndarray, table: Table, ppm: float = 250, marg
     return out
 
 
+def table_view(table: Table, size: tuple[int, int], margin: float = 0.12) -> tuple[np.ndarray, float]:
+    """Table (x, y) -> pixel for a top-down view filling a (w, h) image, centered, far side up; and its
+    pixels per meter."""
+    w, h = size
+    ppm = min(w / (table.length + 2 * margin), h / (table.width + 2 * margin))
+    S, (sw, sh) = topdown_transform(table, ppm, margin)
+    return np.array([[1, 0, (w - sw) / 2], [0, 1, (h - sh) / 2], [0, 0, 1.0]]) @ S, ppm
+
+
+def diagram(table: Table, T: np.ndarray, ppm: float, size: tuple[int, int]) -> np.ndarray:
+    """A plain drawing of the table (no footage) in the view T: surface, rails, center line, goal mouths."""
+    w, h = size
+    img = np.full((h, w, 3), (34, 28, 24), np.uint8)
+    L, W = table.length / 2, table.width / 2
+    px = lambda pts: np.round(apply_h(T, pts) * 4).astype(np.int32)
+    corners = px([[-L, W], [L, W], [L, -W], [-L, -W]])
+    cv2.fillPoly(img, [corners], (78, 62, 46), cv2.LINE_AA, shift=2)
+    rail = max(3, int(round(0.025 * ppm)))
+    cv2.polylines(img, [corners], True, (205, 205, 205), rail, cv2.LINE_AA, shift=2)
+    cv2.polylines(img, [px([[0, W], [0, -W]])], False, (140, 140, 140), 2, cv2.LINE_AA, shift=2)
+    for s in (-1, 1):
+        cv2.ellipse(img, tuple(int(v) for v in apply_h(T, [[s * L, 0]])[0]), (int(0.2 * ppm), int(0.2 * ppm)),
+                    0, 90 if s > 0 else -90, 270 if s > 0 else 90, (120, 120, 120), 1, cv2.LINE_AA)
+        if table.goal_width:
+            g = table.goal_width / 2
+            cv2.polylines(img, [px([[s * L, g], [s * L, -g]])], False, (20, 20, 20), rail + 2, cv2.LINE_AA, shift=2)
+    return img
+
+
 def path_points(t: pd.DataFrame, events: pd.DataFrame | None, fps: float) -> tuple:
     """An object's path as (times, xy, thin): one point per frame, plus each impact's contact point at its
     own time (between frames), so lines drawn through them touch the rail where the puck did. thin marks

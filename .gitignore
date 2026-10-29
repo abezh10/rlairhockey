@@ -6,6 +6,7 @@ data/*
 data/calib/*
 !data/calib/clicks/
 !data/calib/fits.json
+!data/calib/walls.json
 !data/clips/
 data/clips/*
 !data/clips/clips.csv

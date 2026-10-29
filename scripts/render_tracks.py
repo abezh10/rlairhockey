@@ -9,14 +9,13 @@ Writes outputs/tracks/<model>/<clip>.png.
 Usage: python scripts/render_tracks.py <clip> [<clip> ...] [--model v2]
 """
 import argparse
-import json
 from pathlib import Path
 
 import cv2
 import numpy as np
 import pandas as pd
 
-from rlairhockey.geometry import Camera, Table, apply_h
+from rlairhockey.geometry import Table, apply_h, load_framing
 from rlairhockey.render import path_points, topdown, topdown_transform
 from rlairhockey.track import load_config, to_table
 
@@ -31,7 +30,6 @@ def main() -> None:
     ap.add_argument("--ppm", type=float, default=250)
     a = ap.parse_args()
     table, cfg = Table.load(), load_config()
-    fits = json.load(open(ROOT / "data/calib/fits.json"))
     clips = pd.read_csv(ROOT / "data/clips/clips.csv", keep_default_na=False).set_index("clip")
     out = ROOT / "outputs/tracks" / a.model
     out.mkdir(parents=True, exist_ok=True)
@@ -39,11 +37,11 @@ def main() -> None:
     for c in a.clips:
         r = clips.loc[c]
         g = f"{r.video}_{r.angle or 'nocam'}"
-        cam = Camera.from_dict(fits[g]["camera"])
-        img = topdown(cv2.imread(str(ROOT / "data/calib/frames" / f"{g}.jpg")), np.array(fits[g]["H"]), table, a.ppm)
+        cam, H, A = load_framing(g)
+        img = topdown(cv2.imread(str(ROOT / "data/calib/frames" / f"{g}.jpg")), H @ np.linalg.inv(A), table, a.ppm)
         img = (img * 0.6).astype(np.uint8)
         px = lambda xy: apply_h(S, xy).round().astype(int)
-        det = to_table(pd.read_parquet(ROOT / "data/detections" / a.model / f"{c}.parquet"), cam, cfg)
+        det = to_table(pd.read_parquet(ROOT / "data/detections" / a.model / f"{c}.parquet"), cam, cfg, A)
         det = det[det.score >= cfg["min_score"]]
         tr = pd.read_parquet(ROOT / "data/tracks" / a.model / f"{c}.parquet")
         used = set(map(tuple, tr[["x_det", "y_det"]].dropna().round(5).to_numpy()))

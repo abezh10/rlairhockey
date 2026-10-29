@@ -2,7 +2,7 @@
 # Copy clips and calibration frames to Google Drive for notebooks/colab_detector.ipynb, and bring models
 # and results made there back. Drive mirrors the repo layout under My Drive/rlairhockey/.
 # One-time setup: an rclone remote named "gdrive" (README, "Training on Colab").
-# Usage: scripts/sync_drive.sh push [<video> ...]   # data/clips/<video>/, data/calib/frames -> Drive (all videos by default)
+# Usage: scripts/sync_drive.sh push [<video> ...]   # data/clips/<video>/ (and changes/), data/calib/frames -> Drive (all by default)
 #        scripts/sync_drive.sh pull <model>         # Drive -> here: the model's weights, detections, tracks and renders
 #        scripts/sync_drive.sh push-results <model> # here -> Drive: the model's detections, tracks and renders
 set -euo pipefail

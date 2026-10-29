@@ -1,12 +1,19 @@
 # Tracker settings (src/rlairhockey/track.py). Distances in m, speeds in m/s, times in s.
 min_score: 0.15       # detections below this are ignored (detect_clips.py saves down to 0.1)
+repeats:              # frames shown twice (find_repeats.py; track.py, retime())
+  px: 50              # a frame with at most this many changed pixels repeats the one before
+  pulldown: 0.3       # a clip with at least this fraction of repeats is pulldown: its pictures are evenly spaced
+  window: 12          # pictures either side in the fit that times each one
+  min_step: 0.03      # m per frame: a slower puck can't show where a dropped picture was
+  catch_up: 30        # frames after a repeat to look for the dropped picture
 puck:
   z: 0.003            # height of the box center (pucks are ~5 mm thick)
   vmax: 30            # fastest plausible puck; pro shots reach ~20 m/s
   margin: 0.05        # how far outside the surface a detection may land (calibration error)
   goal_depth: 0.15    # extra room past an end rail inside the goal mouth
 mallet:
-  z: 0.04             # height of the box center; mallets are ~9 cm tall
+  z: 0.03             # height of the box center; mallets are ~9 cm tall. At 4 cm, puck-mallet distances at
+                      # strikes came out ~4 cm shorter with the puck on the camera side than behind it
   vmax: 10
   margin: 0.08
   center_overlap: 0.05  # a mallet's center may sit this far over the center line
@@ -24,7 +31,7 @@ parked:               # a spare puck or mallet that sits still while another can
 smooth:               # constant-velocity Kalman filter + RTS smoother
   max_gap: 0.2        # fill gaps up to this long; longer gaps stay empty
   meas_sigma: {puck: 0.01, mallet: 0.02}
-  accel_sigma: {puck: 60, mallet: 25}
+  accel_sigma: {puck: 60, puck_free: 0.5, mallet: 25}   # puck_free: a puck piece no mallet comes near
 impacts:              # where the puck's velocity jumps: a rail, an end wall, a mallet (track.py, smooth_puck)
   sigma: 0.02         # detection noise, the unit of fit residual when splitting the path into pieces
   penalty: 30         # cost of a split, in sigma^2
@@ -38,6 +45,8 @@ impacts:              # where the puck's velocity jumps: a rail, an end wall, a 
   mallet_r: 0.05
   mallet_tol: 0.10    # a strike when a mallet comes within touching distance plus this (+-2 frames)
   rail_tol: 0.12      # a bounce when the contact is within this of the rail line (calibration error)
+  touch_tol: 0.05     # a puck piece is in a mallet's hands (not free flight) when within touching distance plus
+  touch_min: 0.1      # this for at least this long (s), away from its ends
 fill:                 # puck gaps longer than smooth.max_gap (an arm in the way, a missed fast puck): track.py, bridge()
   max: 1.0            # s; longer gaps stay empty
   bounce_cost: 0.3    # m/s added for a wall bounce inside the gap (scores are velocity mismatch at the ends, m/s)

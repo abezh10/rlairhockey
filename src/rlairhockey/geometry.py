@@ -117,6 +117,17 @@ class Camera:
                    tuple(d["size"]))
 
 
+def load_framing(group: str) -> tuple[Camera, np.ndarray, np.ndarray]:
+    """A framing's camera and table -> image homography (data/calib/fits.json), and its wall correction A
+    (data/calib/walls.json, fit_walls.py; identity without one). Tracks are in the corrected frame: a
+    tracked point p is apply_h(inv(A), p) in the calibration's frame, so H @ inv(A) maps tracks into the image."""
+    import json
+    fit = json.load(open(ROOT / "data/calib/fits.json"))[group]
+    wp = ROOT / "data/calib/walls.json"
+    A = json.load(open(wp)).get(group, {}).get("A", np.eye(3)) if wp.exists() else np.eye(3)
+    return Camera.from_dict(fit["camera"]), np.array(fit["H"]), np.array(A, float)
+
+
 def fit_camera(world_xy: np.ndarray, image_uv: np.ndarray, size: tuple[int, int],
                f: float | None = None) -> Camera | None:
     """Full pose from points on the table plane. f defaults to the value the homography implies."""

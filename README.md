@@ -100,10 +100,14 @@ mallet 0.81 on 22 held-out frames.
 ## Detection and tracking (plan steps 4-5)
 ```bash
 sbatch --array=0-3 scripts/slurm/detect_clips.sbatch --model v2   # every box >= 0.1 -> data/detections/v2/<clip>.parquet
+python scripts/find_repeats.py                                    # repeated frames -> data/clips/changes/<clip>.npy
 python scripts/track_clips.py --model v2                          # -> data/tracks/v2/<clip>.parquet, events/<clip>.parquet, stats.csv
+python scripts/fit_walls.py --model v2                            # rails to where the puck bounces -> data/calib/walls.json
 python scripts/render_tracks.py <clip> --model v2                 # top-down picture -> outputs/tracks/v2/<clip>.png
-python scripts/render_video.py <clip> --model v2 --seconds 60     # camera | top-down video -> outputs/videos/v2/<clip>.mp4
+python scripts/render_video.py <clip> --model v2 --seconds 60     # 2 x 2 video -> outputs/videos/v2/<clip>.mp4
 ```
+`scripts/slurm/track_walls.sh <model>` runs tracking and the wall fit together (track, fit, track, fit, track).
+
 The tracker (`src/rlairhockey/track.py`, settings in `configs/track.yaml`) keeps one puck and one mallet per
 table half. It drops detections off the playing surface, then parked spares: a puck or mallet that sits
 still for most of a clip while another candidate of its kind is in view. A lone resting puck is never dropped.
@@ -123,6 +127,34 @@ Gaps in the puck's path that are too long for the smoother (an arm over the puck
 frames) are bridged up to `fill.max` (1 s) by the straight-line path that best matches its motion on both sides:
 no corner, one bounce on a wall, or one impact. Bridged frames have `filled` set, and an impact inferred inside a
 gap has `seen` false, so a dataset can mask or down-weight them.
+
+Some broadcasts show frames twice. The 2024 final is 24 fps footage in a 60 fps file, with no fixed pattern of
+which pictures are doubled, and the 2023 final now and then repeats a frame and then skips one. Taken at face value
+this makes the puck stop for a frame and then jump, and in the 2024 final its speed see-saw by a factor of two.
+`find_repeats.py` measures how much each frame changed, the tracker drops repeats, and `retime()` gives each
+picture the time it was taken: evenly spaced for pulldown, and moved back a frame between a repeat and the
+skip that makes up for it (found from the puck's steps) for the other kind.
+
+The tracks are then held to what a puck can do:
+- Between impacts the puck slides straight at a nearly steady speed, so the path is split into straight-line
+  pieces (any real change of velocity starts a new one), and a piece no mallet touches is smoothed with a small
+  allowance for acceleration (`smooth.accel_sigma.puck_free`). A piece a mallet is pushing gets the usual one.
+- The pieces meet at each impact's contact point, so the path never jumps.
+- `fit_walls.py` corrects each camera framing's calibration from its bounces: a bounce off a wall puts the puck's
+  center one radius from it, so the contacts off each wall trace a line, and a homography on the table plane
+  moves those lines to where they belong (offsets of up to 5 cm before; under 1 cm after two passes).
+- Last, `constrain()` keeps every center at least a radius inside the rails (the puck may go on into a goal mouth)
+  and pushes the puck and a mallet apart when they overlap, the mallet (the less certain of the two) by more.
+  The mallet's box-center height is 3 cm: at 4 cm, puck-mallet distances at strikes depended on which side of
+  the mallet the camera saw the puck.
+Over all 186 tracked clips this took the puck past a rail from 4,226 frames to 51, overlapping a mallet from 6,922
+to 16, accelerating hard (over 10 m/s^2) in free flight from 15,728 frames to 973, and unexplained impacts from
+1,505 to 738.
+
+`render_video.py` shows four views: the footage with every box and each track drawn back in; the top-down table
+(warped footage) with trails and impacts; a plain diagram of the table with only the puck (and its velocity) and
+the mallets; and a live graph of the last 4 s of positions along and across the table and the puck's speed, with
+its impacts as ticks.
 
 `python scripts/check_switches.py --model v2` compares positions just before and after each live camera switch
 (-> `data/tracks/v2/switches.csv`): it confirms the cameras share one table frame (none is rotated 180 degrees)
